@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "devDependencies": {
+    "sharp": "^0.35.3",
     "typescript": "~6.0.2",
     "vite": "^8.2.0",
     "vite-plugin-pwa": "^1.3.0",

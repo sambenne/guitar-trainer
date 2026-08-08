@@ -1,4 +1,5 @@
 import './theme.css';
+import { registerSW } from 'virtual:pwa-register';
 import { addRoute, currentPath, startRouter } from './app/router';
 import { renderLibrary } from './pages/library';
 import { renderPlayer } from './pages/player';
@@ -45,3 +46,5 @@ addRoute('/player/:id', renderPlayer);
 addRoute('/settings', (root) => renderSettings(root));
 
 startRouter(document.querySelector('#outlet')!);
+
+registerSW({ immediate: true });
