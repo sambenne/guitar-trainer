@@ -27,6 +27,15 @@ npm run preview      # serve the production build locally
 Once visited over HTTPS (or localhost), the app installs to the home screen and works
 completely offline.
 
+**Live instance:** https://sambenne.github.io/guitar-trainer/
+
+```bash
+npm run deploy       # build with the /guitar-trainer/ base and push to gh-pages
+```
+
+Local IIS note: the `guitar-trainer.local` site should point at `dist/` (built with the
+default `/` base). A `web.config` ships in `dist/` with the MIME types IIS needs.
+
 ## Testing
 
 ```bash
