@@ -1,4 +1,16 @@
 import { getSettings, saveSettings } from '../app/settings';
+import * as repo from '../storage/repo';
+import { buildBackup, parseBackup, prepareImport } from '../storage/transfer';
+
+function download(filename: string, data: unknown): void {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export function renderSettings(root: HTMLElement): void {
   const settings = getSettings();
@@ -6,6 +18,7 @@ export function renderSettings(root: HTMLElement): void {
   root.innerHTML = `
     <div class="page">
       <h1 class="page-title">Settings</h1>
+
       <div class="card" style="display:flex;flex-direction:column;gap:18px">
         <label style="display:flex;align-items:center;justify-content:space-between;gap:12px">
           <span>Metronome</span>
@@ -26,12 +39,26 @@ export function renderSettings(root: HTMLElement): void {
           </select>
         </label>
       </div>
+
+      <h2 style="font-size:16px;margin:20px 0 10px">Your data</h2>
+      <div class="card" style="display:flex;flex-direction:column;gap:12px">
+        <p class="muted" style="margin:0;font-size:13px">
+          Your songs, chords and patterns live only in this browser. Export a backup before clearing
+          browser data or to move them to another device.
+        </p>
+        <button class="export-btn">Export backup</button>
+        <button class="import-btn">Import backup</button>
+        <input type="file" class="import-file" accept=".json,application/json" style="display:none" />
+        <button class="danger reset-btn">Delete all my data</button>
+        <p class="data-status muted" style="margin:0;font-size:13px"></p>
+      </div>
     </div>
   `;
 
   const enabled = root.querySelector('.metro-enabled') as HTMLInputElement;
   const volume = root.querySelector('.metro-volume') as HTMLInputElement;
   const orientation = root.querySelector('.orientation') as HTMLSelectElement;
+  const status = root.querySelector('.data-status') as HTMLElement;
 
   enabled.checked = settings.metronomeEnabled;
   volume.value = String(settings.metronomeVolume);
@@ -42,4 +69,52 @@ export function renderSettings(root: HTMLElement): void {
   orientation.addEventListener('change', () =>
     saveSettings({ stringOrientation: orientation.value as 'lowTop' | 'highTop' }),
   );
+
+  (root.querySelector('.export-btn') as HTMLElement).addEventListener('click', async () => {
+    const [songs, chords, patterns] = await Promise.all([
+      repo.getUserSongs(),
+      repo.getUserChords(),
+      repo.getUserPatterns(),
+    ]);
+    download('guitar-trainer-backup.json', buildBackup(songs, chords, patterns));
+    status.textContent = `Exported ${songs.length} songs, ${chords.length} chords, ${patterns.length} patterns.`;
+  });
+
+  const fileInput = root.querySelector('.import-file') as HTMLInputElement;
+  (root.querySelector('.import-btn') as HTMLElement).addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files?.[0];
+    fileInput.value = '';
+    if (!file) return;
+    try {
+      const backup = parseBackup(await file.text());
+      const [chordMap, patternMap, userSongs] = await Promise.all([
+        repo.getChordMap(),
+        repo.getPatternMap(),
+        repo.getUserSongs(),
+      ]);
+      const existingIds = new Set<string>([
+        ...chordMap.keys(),
+        ...patternMap.keys(),
+        ...userSongs.map((s) => s.id),
+        ...(await repo.getPresetSongs()).map((s) => s.id),
+      ]);
+      const plan = prepareImport(backup, existingIds);
+      for (const chord of plan.chords) await repo.saveChord(chord);
+      for (const pattern of plan.patterns) await repo.savePattern(pattern);
+      for (const song of plan.songs) await repo.saveSong(song);
+      const renamed = Object.keys(plan.remapped).length;
+      status.textContent =
+        `Imported ${plan.songs.length} songs, ${plan.chords.length} chords, ${plan.patterns.length} patterns.` +
+        (renamed ? ` ${renamed} item${renamed === 1 ? '' : 's'} renamed to avoid ID clashes.` : '');
+    } catch (err) {
+      status.textContent = `Import failed: ${err instanceof Error ? err.message : 'unknown error'}`;
+    }
+  });
+
+  (root.querySelector('.reset-btn') as HTMLElement).addEventListener('click', async () => {
+    if (!confirm('Delete ALL your songs, chords and patterns? Presets are kept. This cannot be undone.')) return;
+    await repo.resetUserData();
+    status.textContent = 'All user data deleted.';
+  });
 }

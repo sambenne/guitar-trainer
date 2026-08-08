@@ -1,0 +1,299 @@
+/* ---- Editor hub ---- */
+
+.hub-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.hub-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.hub-group-head h2 {
+  font-size: 16px;
+}
+
+.hub-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  min-height: 48px;
+}
+
+.hub-row:last-child {
+  border-bottom: none;
+}
+
+.hub-row-label {
+  font-weight: 600;
+}
+
+.hub-row-sub {
+  flex: 1;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hub-row .badge {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 6px;
+}
+
+.hub-row button {
+  min-height: 38px;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+
+button.danger {
+  color: var(--danger);
+}
+
+/* ---- Editor forms ---- */
+
+.editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.editor-head h1 {
+  font-size: 18px;
+  flex: 1;
+  text-align: center;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.field > span {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2px;
+  width: fit-content;
+}
+
+.stepper button {
+  min-height: 40px;
+  width: 40px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+}
+
+.stepper .stepper-value {
+  min-width: 44px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Pattern editor ---- */
+
+.step-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.step-chip {
+  width: 52px;
+  height: 56px;
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+}
+
+.step-chip small {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
+.step-chip.dir-D {
+  color: var(--accent);
+}
+
+.step-chip.dir-U {
+  color: var(--text);
+}
+
+.step-chip.dir-none {
+  color: var(--text-dim);
+}
+
+.string-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.string-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: none;
+  padding: 6px 0;
+  min-height: 40px;
+  text-align: left;
+}
+
+.string-toggle .string-name {
+  width: 20px;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.string-toggle .string-line {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.string-toggle[aria-pressed='false'] .string-line {
+  background: var(--border);
+  height: 1px;
+}
+
+.string-toggle .string-state {
+  width: 34px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.pattern-preview {
+  width: 100%;
+  max-height: 220px;
+}
+
+/* ---- Chord editor ---- */
+
+.chord-editor-board {
+  width: 100%;
+  max-width: 340px;
+  margin: 0 auto;
+  display: block;
+  touch-action: manipulation;
+}
+
+.finger-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.finger-picker button {
+  min-width: 52px;
+}
+
+.finger-picker button[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* ---- Song editor ---- */
+
+.section-card {
+  margin-bottom: 14px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.section-head input {
+  flex: 1;
+  min-width: 0;
+}
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.bar-row:last-of-type {
+  border-bottom: none;
+}
+
+.bar-row .bar-num {
+  width: 20px;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.bar-row select {
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+}
+
+.bar-row .bar-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.bar-row .bar-actions button {
+  min-height: 36px;
+  min-width: 34px;
+  padding: 4px;
+  font-size: 14px;
+  border: none;
+  background: transparent;
+}
+
+.add-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.editor-error {
+  color: var(--danger);
+  font-size: 14px;
+  margin: 8px 0;
+  min-height: 18px;
+}

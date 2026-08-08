@@ -1,4 +1,25 @@
-.song-list {
+.library-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.library-head .page-title {
+  margin-bottom: 0;
+}
+
+.library-head + .song-list {
+  margin-top: 16px;
+}
+
+.library-subtitle {
+  font-size: 16px;
+  margin: 20px 0 10px;
+}
+
+.song-list,
+.user-song-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -6,13 +27,26 @@
 
 .song-row {
   display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.song-row .song-open {
+  flex: 1;
+  display: flex;
   align-items: center;
   gap: 12px;
-  width: 100%;
+  min-width: 0;
   text-align: left;
   padding: 14px;
   background: var(--panel);
   border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.song-row .song-edit {
+  flex-shrink: 0;
+  min-width: 48px;
   border-radius: var(--radius);
 }
 

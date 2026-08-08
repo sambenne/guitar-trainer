@@ -1,9 +1,13 @@
 import './theme.css';
 import { registerSW } from 'virtual:pwa-register';
 import { addRoute, currentPath, startRouter } from './app/router';
+import { renderChordEditor } from './pages/chord-editor';
+import { renderEditorHub } from './pages/editor-hub';
 import { renderLibrary } from './pages/library';
+import { renderPatternEditor } from './pages/pattern-editor';
 import { renderPlayer } from './pages/player';
 import { renderSettings } from './pages/settings';
+import { renderSongEditor } from './pages/song-editor';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -12,6 +16,11 @@ const NAV_ITEMS = [
     path: '/library',
     label: 'Library',
     icon: '<svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>',
+  },
+  {
+    path: '/editor',
+    label: 'Editor',
+    icon: '<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>',
   },
   {
     path: '/settings',
@@ -43,6 +52,13 @@ document.addEventListener('route-changed', updateNav);
 
 addRoute('/library', renderLibrary);
 addRoute('/player/:id', renderPlayer);
+addRoute('/editor', renderEditorHub);
+addRoute('/song-editor', renderSongEditor);
+addRoute('/song-editor/:id', renderSongEditor);
+addRoute('/chord-editor', renderChordEditor);
+addRoute('/chord-editor/:id', renderChordEditor);
+addRoute('/pattern-editor', renderPatternEditor);
+addRoute('/pattern-editor/:id', renderPatternEditor);
 addRoute('/settings', (root) => renderSettings(root));
 
 startRouter(document.querySelector('#outlet')!);
