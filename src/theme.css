@@ -88,6 +88,7 @@ button.ghost {
 
 input,
 select {
+  accent-color: var(--accent);
   font: inherit;
   color: var(--text);
   background: var(--panel-2);

@@ -285,6 +285,21 @@ button.danger {
   background: transparent;
 }
 
+/* Narrow screens: selects get the full row, actions wrap underneath */
+@media (max-width: 520px) {
+  .bar-row {
+    flex-wrap: wrap;
+  }
+
+  .bar-row select {
+    flex: 1 1 38%;
+  }
+
+  .bar-row .bar-actions {
+    margin-left: auto;
+  }
+}
+
 .add-row {
   display: flex;
   gap: 8px;
