@@ -1,0 +1,112 @@
+.chords-page .mode-toggle {
+  display: flex;
+  gap: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 16px;
+}
+
+.chords-page .mode-toggle button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.chords-page .mode-toggle button[aria-pressed='true'] {
+  background: var(--panel-2);
+  color: var(--accent);
+}
+
+/* ---- Single mode ---- */
+
+.chord-single {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.chord-single .chord-cycle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.chord-single .cycle-btn {
+  font-size: 26px;
+  min-width: 56px;
+  min-height: 72px;
+  flex-shrink: 0;
+}
+
+.chord-single .chord-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.chord-single .chord-name {
+  font-size: clamp(36px, 8vmin, 60px);
+  font-weight: 750;
+  line-height: 1.15;
+}
+
+.chord-single .chord-diagram {
+  width: 100%;
+  max-width: 300px;
+}
+
+.chord-single .chord-pos {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.strum-sound-btn {
+  min-width: 160px;
+  font-size: 16px;
+}
+
+.strum-sound-btn:disabled {
+  opacity: 0.5;
+}
+
+/* ---- Compare mode ---- */
+
+.chord-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.chord-compare .compare-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.chord-compare select {
+  width: 100%;
+}
+
+.chord-compare .chord-diagram {
+  width: 100%;
+  max-width: 240px;
+}
+
+.chord-compare .strum-sound-btn {
+  min-width: 0;
+  width: 100%;
+}
+
+.chords-page .hint {
+  margin-top: 14px;
+  font-size: 13px;
+}

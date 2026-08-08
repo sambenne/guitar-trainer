@@ -2,6 +2,7 @@ import './theme.css';
 import { registerSW } from 'virtual:pwa-register';
 import { addRoute, currentPath, startRouter } from './app/router';
 import { renderChordEditor } from './pages/chord-editor';
+import { renderChordsPage } from './pages/chords';
 import { renderEditorHub } from './pages/editor-hub';
 import { renderLibrary } from './pages/library';
 import { renderPatternEditor } from './pages/pattern-editor';
@@ -16,6 +17,11 @@ const NAV_ITEMS = [
     path: '/library',
     label: 'Library',
     icon: '<svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>',
+  },
+  {
+    path: '/chords',
+    label: 'Chords',
+    icon: '<svg viewBox="0 0 24 24"><path d="M4 3h2v18H4zM9 3h2v18H9zM14 3h2v18h-2zM19 3h2v18h-2z" opacity=".4"/><circle cx="10" cy="9" r="2.6"/><circle cx="15" cy="14" r="2.6"/></svg>',
   },
   {
     path: '/editor',
@@ -52,6 +58,7 @@ document.addEventListener('route-changed', updateNav);
 
 addRoute('/library', renderLibrary);
 addRoute('/player/:id', renderPlayer);
+addRoute('/chords', renderChordsPage);
 addRoute('/editor', renderEditorHub);
 addRoute('/song-editor', renderSongEditor);
 addRoute('/song-editor/:id', renderSongEditor);

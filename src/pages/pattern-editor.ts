@@ -2,9 +2,15 @@ import './editor.css';
 import type { RouteContext } from '../app/router';
 import { navigate } from '../app/router';
 import { getSettings } from '../app/settings';
+import { loadSampler, strumChord } from '../audio/sampler';
 import { createStrumDisplay } from '../components/strum-display';
+import { PRESET_CHORDS } from '../data/chords';
 import * as repo from '../storage/repo';
 import { STRING_NAMES, type StrumDirection, type StrummingPattern } from '../types/models';
+
+const PREVIEW_BPM = 80;
+/** Chord used to voice the preview strums. */
+const PREVIEW_CHORD = PRESET_CHORDS.find((c) => c.id === 'em')!;
 
 const CYCLE: Record<StrumDirection, StrumDirection> = { D: 'U', U: '-', '-': 'D' };
 const MAX_STEPS = 16;
@@ -12,6 +18,8 @@ const MIN_STEPS = 2;
 
 export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () => void {
   let disposed = false;
+  let audioCtx: AudioContext | null = null;
+  let previewing = false;
 
   const [id, query] = (ctx.params.id ?? '').split('?');
   const duplicate = query?.includes('duplicate=1') ?? false;
@@ -73,7 +81,10 @@ export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () =>
         </div>
 
         <div class="field">
-          <span>Preview</span>
+          <span style="display:flex;align-items:center;justify-content:space-between">
+            Preview
+            <button class="preview-play" style="min-height:38px;padding:6px 14px">▶ Play</button>
+          </span>
           <div class="card preview-holder"></div>
         </div>
 
@@ -152,6 +163,49 @@ export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () =>
       refreshPreview();
     });
 
+    // One play-through of the pattern with sampled strums (voiced as Em)
+    const playBtn = root.querySelector('.preview-play') as HTMLButtonElement;
+    playBtn.addEventListener('click', async () => {
+      if (previewing) return;
+      previewing = true;
+      playBtn.disabled = true;
+      try {
+        if (!audioCtx) audioCtx = new AudioContext();
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
+        const buffers = await loadSampler(audioCtx);
+
+        const stepDur = 60 / PREVIEW_BPM / 2; // 8th-note grid
+        const t0 = audioCtx.currentTime + 0.1;
+        draft.steps.forEach((step, i) => {
+          if (step.direction === '-') return;
+          strumChord(audioCtx!, audioCtx!.destination, buffers, PREVIEW_CHORD, {
+            when: t0 + i * stepDur,
+            direction: step.direction,
+            spread: 0.01,
+            stringMask: draft.strings,
+          });
+        });
+
+        const total = draft.steps.length;
+        await new Promise<void>((resolve) => {
+          const frame = (): void => {
+            if (disposed) return resolve();
+            const stepFloat = (audioCtx!.currentTime - t0) / stepDur;
+            if (stepFloat >= total) return resolve();
+            preview.update(Math.max(0, stepFloat));
+            requestAnimationFrame(frame);
+          };
+          requestAnimationFrame(frame);
+        });
+        preview.update(null);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        previewing = false;
+        playBtn.disabled = false;
+      }
+    });
+
     (root.querySelector('.cancel-btn') as HTMLElement).addEventListener('click', () => navigate('/editor'));
 
     (root.querySelector('.save-btn') as HTMLElement).addEventListener('click', async () => {
@@ -179,5 +233,6 @@ export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () =>
 
   return () => {
     disposed = true;
+    void audioCtx?.close();
   };
 }

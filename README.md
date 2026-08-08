@@ -62,6 +62,14 @@ npm test             # vitest: timeline compiler + import/export validation
   backups; single-song exports bundle the custom chords/patterns they reference; imports
   are validated and re-ID'd on collision.
 
+## Credits
+
+Chord sounds use the [FSS Steel-String Acoustic Guitar](https://freepats.zenvoid.org/Guitar/steel-acoustic-guitar.html)
+samples from the FreePats project (GPLv3+ with sampling exception) — trimmed and
+downsampled copies live in [public/samples/](public/samples/), full attribution in
+`FREEPATS-README.txt` there. Playback pitch-shifts the nearest sample per string
+([src/audio/sampler.ts](src/audio/sampler.ts)).
+
 ## Data model
 
 Songs are sections → bars, one chord + one strumming pattern per bar (MVP constraint).

@@ -1,0 +1,108 @@
+import type { Chord, StrumDirection } from '../types/models';
+
+/**
+ * Chord playback using the FreePats FSS Steel String Guitar samples
+ * (bundled in public/samples/, see FREEPATS-README.txt for attribution).
+ * Each sample covers nearby pitches via playbackRate shifting.
+ */
+
+interface SampleDef {
+  midi: number;
+  url: string;
+}
+
+const SAMPLES: SampleDef[] = [
+  { midi: 40, url: 'samples/e2.wav' },
+  { midi: 45, url: 'samples/a2.wav' },
+  { midi: 51, url: 'samples/ds3.wav' },
+  { midi: 56, url: 'samples/gs3.wav' },
+  { midi: 60, url: 'samples/c4.wav' },
+  { midi: 63, url: 'samples/ds4.wav' },
+  { midi: 66, url: 'samples/fs4.wav' },
+  { midi: 69, url: 'samples/a4.wav' },
+];
+
+/** Open-string MIDI notes, low E → high e (standard tuning). */
+const OPEN_STRING_MIDI = [40, 45, 50, 55, 59, 64];
+
+let loadPromise: Promise<Map<number, AudioBuffer>> | null = null;
+
+export function loadSampler(ctx: AudioContext): Promise<Map<number, AudioBuffer>> {
+  if (!loadPromise) {
+    const base = import.meta.env.BASE_URL;
+    loadPromise = Promise.all(
+      SAMPLES.map(async (s) => {
+        const res = await fetch(base + s.url);
+        if (!res.ok) throw new Error(`Failed to load sample ${s.url}`);
+        const buf = await ctx.decodeAudioData(await res.arrayBuffer());
+        return [s.midi, buf] as const;
+      }),
+    ).then((entries) => new Map(entries));
+    loadPromise.catch(() => (loadPromise = null)); // allow retry after failure
+  }
+  return loadPromise;
+}
+
+/** MIDI note per string for a chord; null = muted/unplayed. */
+export function chordMidiNotes(chord: Chord): (number | null)[] {
+  return chord.strings.map((cs, i) => {
+    if (cs.state === 'muted') return null;
+    if (cs.state === 'fretted' && cs.fret) return OPEN_STRING_MIDI[i] + cs.fret;
+    return OPEN_STRING_MIDI[i];
+  });
+}
+
+function nearestSample(buffers: Map<number, AudioBuffer>, midi: number): { midi: number; buffer: AudioBuffer } {
+  let best: { midi: number; buffer: AudioBuffer } | null = null;
+  for (const [m, buffer] of buffers) {
+    if (!best || Math.abs(m - midi) < Math.abs(best.midi - midi)) best = { midi: m, buffer };
+  }
+  return best!;
+}
+
+export interface StrumOptions {
+  /** AudioContext time to start; defaults to now. */
+  when?: number;
+  direction?: StrumDirection;
+  /** Seconds between adjacent string onsets. ~0.008 tight, ~0.05 slow roll. */
+  spread?: number;
+  /** Only strum strings where mask[i] is true (in addition to chord muting). */
+  stringMask?: boolean[];
+  gain?: number;
+}
+
+/**
+ * Strum a chord. Downstrokes roll low E → high e, upstrokes the reverse.
+ * Returns the time of the last string onset.
+ */
+export function strumChord(
+  ctx: AudioContext,
+  destination: AudioNode,
+  buffers: Map<number, AudioBuffer>,
+  chord: Chord,
+  opts: StrumOptions = {},
+): number {
+  const { when = ctx.currentTime, direction = 'D', spread = 0.012, stringMask, gain = 0.9 } = opts;
+
+  const notes = chordMidiNotes(chord)
+    .map((midi, stringIdx) => ({ midi, stringIdx }))
+    .filter((n): n is { midi: number; stringIdx: number } => n.midi !== null)
+    .filter((n) => !stringMask || stringMask[n.stringIdx]);
+
+  const order = direction === 'U' ? [...notes].reverse() : notes;
+  let t = when;
+  order.forEach((note, i) => {
+    const sample = nearestSample(buffers, note.midi);
+    const src = ctx.createBufferSource();
+    src.buffer = sample.buffer;
+    src.playbackRate.value = Math.pow(2, (note.midi - sample.midi) / 12);
+
+    const g = ctx.createGain();
+    g.gain.value = gain / Math.max(2.2, notes.length * 0.55); // keep 6-string strums from clipping
+    src.connect(g);
+    g.connect(destination);
+    t = when + i * spread;
+    src.start(t);
+  });
+  return t;
+}
