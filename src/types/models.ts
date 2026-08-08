@@ -53,6 +53,8 @@ export interface Song {
   title: string;
   artist?: string;
   bpm: number;
+  /** Capo fret (0 = none). Shapes stay the same; audio sounds this many semitones higher. */
+  capo?: number;
   timeSignature: { beats: number; noteValue: number };
   sections: SongSection[];
 }

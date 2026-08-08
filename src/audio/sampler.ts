@@ -43,12 +43,16 @@ export function loadSampler(ctx: AudioContext): Promise<Map<number, AudioBuffer>
   return loadPromise;
 }
 
-/** MIDI note per string for a chord; null = muted/unplayed. */
-export function chordMidiNotes(chord: Chord): (number | null)[] {
+/**
+ * MIDI note per string for a chord; null = muted/unplayed.
+ * A capo raises every sounding string by the same number of semitones
+ * (fret positions are relative to the capo, exactly like on a real guitar).
+ */
+export function chordMidiNotes(chord: Chord, capo = 0): (number | null)[] {
   return chord.strings.map((cs, i) => {
     if (cs.state === 'muted') return null;
-    if (cs.state === 'fretted' && cs.fret) return OPEN_STRING_MIDI[i] + cs.fret;
-    return OPEN_STRING_MIDI[i];
+    if (cs.state === 'fretted' && cs.fret) return OPEN_STRING_MIDI[i] + cs.fret + capo;
+    return OPEN_STRING_MIDI[i] + capo;
   });
 }
 
@@ -68,6 +72,8 @@ export interface StrumOptions {
   spread?: number;
   /** Only strum strings where mask[i] is true (in addition to chord muting). */
   stringMask?: boolean[];
+  /** Capo fret — raises every note by this many semitones. */
+  capo?: number;
   gain?: number;
 }
 
@@ -82,9 +88,9 @@ export function strumChord(
   chord: Chord,
   opts: StrumOptions = {},
 ): number {
-  const { when = ctx.currentTime, direction = 'D', spread = 0.012, stringMask, gain = 0.9 } = opts;
+  const { when = ctx.currentTime, direction = 'D', spread = 0.012, stringMask, capo = 0, gain = 0.9 } = opts;
 
-  const notes = chordMidiNotes(chord)
+  const notes = chordMidiNotes(chord, capo)
     .map((midi, stringIdx) => ({ midi, stringIdx }))
     .filter((n): n is { midi: number; stringIdx: number } => n.midi !== null)
     .filter((n) => !stringMask || stringMask[n.stringIdx]);

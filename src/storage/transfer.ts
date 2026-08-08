@@ -110,6 +110,9 @@ function checkSong(s: unknown, i: number): asserts s is Song {
   if (typeof s.id !== 'string' || !s.id) fail(`songs[${i}].id missing`);
   if (typeof s.title !== 'string' || !s.title) fail(`songs[${i}].title missing`);
   if (typeof s.bpm !== 'number' || s.bpm < 20 || s.bpm > 300) fail(`songs[${i}].bpm out of range`);
+  if (s.capo !== undefined && (typeof s.capo !== 'number' || !Number.isInteger(s.capo) || s.capo < 0 || s.capo > 11)) {
+    fail(`songs[${i}].capo invalid`);
+  }
   const ts = s.timeSignature;
   if (!isObj(ts) || typeof ts.beats !== 'number' || ts.beats < 1 || typeof ts.noteValue !== 'number') {
     fail(`songs[${i}].timeSignature invalid`);

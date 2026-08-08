@@ -266,7 +266,43 @@
 .transport {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+}
+
+.capo-control {
+  display: flex;
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.capo-control button {
+  min-height: 40px;
+  width: 34px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+}
+
+.capo-control .capo-value {
+  min-width: 40px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.capo-control .capo-value strong {
+  font-size: 16px;
+}
+
+.capo-control .capo-value span {
+  display: block;
+  font-size: 9px;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
 }
 
 .transport .loop-select {

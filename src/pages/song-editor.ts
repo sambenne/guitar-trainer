@@ -86,6 +86,14 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
               <button class="beats-up">+</button>
             </div>
           </div>
+          <div class="field">
+            <span>Capo</span>
+            <div class="stepper">
+              <button class="capo-down">−</button>
+              <span class="stepper-value capo-value"></span>
+              <button class="capo-up">+</button>
+            </div>
+          </div>
         </div>
 
         <div class="sections"></div>
@@ -104,12 +112,14 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
 
     const bpmValue = root.querySelector('.bpm-value') as HTMLElement;
     const beatsValue = root.querySelector('.beats-value') as HTMLElement;
+    const capoValue = root.querySelector('.capo-value') as HTMLElement;
     const sectionsEl = root.querySelector('.sections') as HTMLElement;
     const errorEl = root.querySelector('.editor-error') as HTMLElement;
 
     function syncSteppers(): void {
       bpmValue.textContent = String(draft.bpm);
       beatsValue.textContent = String(draft.timeSignature.beats);
+      capoValue.textContent = draft.capo ? String(draft.capo) : 'None';
     }
     (root.querySelector('.bpm-down') as HTMLElement).addEventListener('click', () => {
       draft.bpm = Math.max(20, draft.bpm - 5);
@@ -128,6 +138,14 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
       draft.timeSignature.beats = Math.min(12, draft.timeSignature.beats + 1);
       syncSteppers();
       renderSections();
+    });
+    (root.querySelector('.capo-down') as HTMLElement).addEventListener('click', () => {
+      draft.capo = Math.max(0, (draft.capo ?? 0) - 1) || undefined;
+      syncSteppers();
+    });
+    (root.querySelector('.capo-up') as HTMLElement).addEventListener('click', () => {
+      draft.capo = Math.min(11, (draft.capo ?? 0) + 1);
+      syncSteppers();
     });
     syncSteppers();
 

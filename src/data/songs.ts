@@ -66,6 +66,7 @@ export const PRESET_SONGS: Song[] = [
   },
   {
     id: 'stand-by-me',
+    capo: 2,
     title: 'Stand By Me',
     artist: 'Ben E. King',
     bpm: 100,
@@ -125,6 +126,7 @@ export const PRESET_SONGS: Song[] = [
   },
   {
     id: 'wonderwall',
+    capo: 2,
     title: 'Wonderwall',
     artist: 'Oasis',
     bpm: 87,
@@ -156,6 +158,7 @@ export const PRESET_SONGS: Song[] = [
   },
   {
     id: 'perfect',
+    capo: 1,
     title: 'Perfect',
     artist: 'Ed Sheeran',
     bpm: 63,
@@ -317,6 +320,7 @@ export const PRESET_SONGS: Song[] = [
   },
   {
     id: 'here-i-am-to-worship',
+    capo: 2,
     title: 'Here I Am to Worship',
     artist: 'Tim Hughes',
     bpm: 72,

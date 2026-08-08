@@ -131,6 +131,11 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
         <div class="next-chord"><span class="muted">Next:</span> <strong>–</strong> <span class="beats-left muted"></span></div>
 
         <div class="transport">
+          <div class="capo-control" title="Capo fret">
+            <button class="capo-down" aria-label="Capo down">−</button>
+            <div class="capo-value"><strong></strong><span>CAPO</span></div>
+            <button class="capo-up" aria-label="Capo up">+</button>
+          </div>
           <select class="loop-select" aria-label="Loop"></select>
           <button class="restart-btn" aria-label="Restart">⏮</button>
           <button class="play-btn primary" aria-label="Play">▶</button>
@@ -171,6 +176,22 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
 
     bpmValue.textContent = String(player.getBpm());
     metroBtn.setAttribute('aria-pressed', String(settings.metronomeEnabled));
+
+    // Capo: shapes stay the same, practice sounds ring this many semitones higher
+    let capo = song.capo ?? 0;
+    const capoValue = $('.capo-value strong');
+    function syncCapo(): void {
+      capoValue.textContent = capo === 0 ? '–' : String(capo);
+    }
+    $('.capo-down').addEventListener('click', () => {
+      capo = Math.max(0, capo - 1);
+      syncCapo();
+    });
+    $('.capo-up').addEventListener('click', () => {
+      capo = Math.min(11, capo + 1);
+      syncCapo();
+    });
+    syncCapo();
 
     // ---- State applied per-frame ----
     let shownChordId: string | null = null;
@@ -292,11 +313,11 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
           const [a, b] = songTransitions[transitionIdx];
           const chordA = chords.get(a);
           const chordB = chords.get(b);
-          if (chordA) strumChord(ctx, ctx.destination, buffers, chordA, { spread: 0.045 });
-          if (chordB) strumChord(ctx, ctx.destination, buffers, chordB, { when: ctx.currentTime + 1.1, spread: 0.045 });
+          if (chordA) strumChord(ctx, ctx.destination, buffers, chordA, { spread: 0.045, capo });
+          if (chordB) strumChord(ctx, ctx.destination, buffers, chordB, { when: ctx.currentTime + 1.1, spread: 0.045, capo });
         } else {
           const chord = chords.get(displayedChordId());
-          if (chord) strumChord(ctx, ctx.destination, buffers, chord, { spread: 0.045 });
+          if (chord) strumChord(ctx, ctx.destination, buffers, chord, { spread: 0.045, capo });
         }
       } catch (err) {
         console.error(err);
@@ -324,6 +345,7 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
             direction: step.direction,
             spread: 0.01,
             stringMask: pattern.strings,
+            capo,
           });
         });
         await new Promise<void>((resolve) => {
