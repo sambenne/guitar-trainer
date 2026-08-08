@@ -80,4 +80,18 @@ export const PRESET_PATTERNS: StrummingPattern[] = [
     ],
     strings: [...ALL_STRINGS],
   },
+  {
+    // 3/4 time — six 8th-note steps per bar. For hymns and waltzes.
+    id: 'p-waltz',
+    name: 'Waltz (D - DU DU)',
+    steps: [
+      { direction: 'D' },
+      { direction: '-' },
+      { direction: 'D' },
+      { direction: 'U' },
+      { direction: 'D' },
+      { direction: 'U' },
+    ],
+    strings: [...ALL_STRINGS],
+  },
 ];
