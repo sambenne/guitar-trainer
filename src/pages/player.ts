@@ -4,6 +4,7 @@ import { navigate } from '../app/router';
 import { getSettings } from '../app/settings';
 import { compileTimeline, nextChordChange, type Timeline } from '../audio/timeline';
 import { createPlayer, type Player } from '../audio/scheduler';
+import { loadSampler, strumChord } from '../audio/sampler';
 import { createChordDiagram } from '../components/chord-diagram';
 import { createStrumDisplay } from '../components/strum-display';
 import { getChordMap, getPatternMap, getSong } from '../storage/repo';
@@ -16,6 +17,13 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
   let raf = 0;
   let player: Player | null = null;
   let wakeLock: WakeLockSentinel | null = null;
+  let practiceCtx: AudioContext | null = null;
+
+  async function practiceAudio(): Promise<{ ctx: AudioContext; buffers: Map<number, AudioBuffer> }> {
+    if (!practiceCtx) practiceCtx = new AudioContext();
+    if (practiceCtx.state === 'suspended') await practiceCtx.resume();
+    return { ctx: practiceCtx, buffers: await loadSampler(practiceCtx) };
+  }
 
   root.innerHTML = `<div class="player"><p class="muted" style="padding:16px">Loading…</p></div>`;
 
@@ -92,11 +100,31 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
 
         <div class="player-panels">
           <div class="panel chord-panel">
-            <div class="panel-label">CHORD</div>
-            <div class="chord-name">–</div>
+            <div class="panel-label-row">
+              <div class="panel-label">CHORD</div>
+              <div class="practice-controls">
+                <button class="pc-btn pc-prev" aria-label="Previous chord">‹</button>
+                <button class="pc-btn pc-next" aria-label="Next chord">›</button>
+                <button class="pc-btn pc-split" aria-label="Show chord change" aria-pressed="false">⇄</button>
+                <button class="pc-btn pc-sound" aria-label="Play chord sound">🔊</button>
+              </div>
+            </div>
+            <div class="chord-single-view">
+              <div class="chord-name">–</div>
+            </div>
+            <div class="chord-split-view" hidden>
+              <div class="split-half" data-side="0"><div class="split-name"></div></div>
+              <div class="split-arrow">→</div>
+              <div class="split-half" data-side="1"><div class="split-name"></div></div>
+            </div>
           </div>
           <div class="panel strum-panel">
-            <div class="panel-label">STRUMMING</div>
+            <div class="panel-label-row">
+              <div class="panel-label">STRUMMING</div>
+              <div class="practice-controls">
+                <button class="pc-btn strum-preview" aria-label="Preview strumming">▶</button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -127,9 +155,13 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     const countEl = overlay.querySelector('.count') as HTMLElement;
 
     const chordDiagram = createChordDiagram();
-    $('.chord-panel').appendChild(chordDiagram.svg);
+    $('.chord-single-view').appendChild(chordDiagram.svg);
     const strumDisplay = createStrumDisplay();
     $('.strum-panel').appendChild(strumDisplay.svg);
+
+    // Split-view diagrams (practice: see a chord change side by side)
+    const splitDiagrams = [createChordDiagram(), createChordDiagram()];
+    root.querySelectorAll<HTMLElement>('.split-half').forEach((half, i) => half.appendChild(splitDiagrams[i].svg));
 
     // Loop selector: full song (default), each section, or play through once
     loopSelect.innerHTML =
@@ -180,15 +212,174 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
       }
     }
 
+    // ---- Practice mode (while not playing): cycle the song's chords,
+    // view its chord changes side by side, and hear chord/pattern sounds ----
+    const songChordIds: string[] = [];
+    for (const step of timeline.steps) {
+      if (!songChordIds.includes(step.chordId)) songChordIds.push(step.chordId);
+    }
+    const songTransitions: [string, string][] = [];
+    for (let i = 1; i < timeline.steps.length; i++) {
+      const a = timeline.steps[i - 1].chordId;
+      const b = timeline.steps[i].chordId;
+      if (a !== b && !songTransitions.some((t) => t[0] === a && t[1] === b)) songTransitions.push([a, b]);
+    }
+
+    let practiceIdx = 0;
+    let transitionIdx = 0;
+    let splitMode = false;
+
+    const singleView = $('.chord-single-view');
+    const splitView = $('.chord-split-view');
+    const splitNames = [...root.querySelectorAll<HTMLElement>('.split-name')];
+    const splitBtn = $<HTMLButtonElement>('.pc-split');
+    const soundBtn = $<HTMLButtonElement>('.pc-sound');
+    const previewBtn = $<HTMLButtonElement>('.strum-preview');
+
+    function displayedChordId(): string {
+      return splitMode ? songTransitions[transitionIdx]?.[0] ?? songChordIds[practiceIdx] : songChordIds[practiceIdx];
+    }
+
+    function renderPractice(): void {
+      if (splitMode && songTransitions.length > 0) {
+        singleView.style.display = 'none';
+        splitView.hidden = false;
+        const [a, b] = songTransitions[transitionIdx];
+        [a, b].forEach((id, i) => {
+          const chord = chords.get(id);
+          splitNames[i].textContent = chord?.name ?? '?';
+          if (chord) splitDiagrams[i].render(chord);
+        });
+      } else {
+        splitView.hidden = true;
+        singleView.style.display = '';
+        const chord = chords.get(songChordIds[practiceIdx]);
+        chordName.textContent = chord?.name ?? '?';
+        if (chord) chordDiagram.render(chord);
+        shownChordId = null; // force live view to re-render on next play
+      }
+    }
+
+    function cyclePractice(delta: number): void {
+      if (splitMode && songTransitions.length > 0) {
+        transitionIdx = (transitionIdx + delta + songTransitions.length) % songTransitions.length;
+      } else {
+        practiceIdx = (practiceIdx + delta + songChordIds.length) % songChordIds.length;
+      }
+      renderPractice();
+    }
+
+    $('.pc-prev').addEventListener('click', () => cyclePractice(-1));
+    $('.pc-next').addEventListener('click', () => cyclePractice(1));
+
+    splitBtn.addEventListener('click', () => {
+      splitMode = !splitMode && songTransitions.length > 0;
+      splitBtn.setAttribute('aria-pressed', String(splitMode));
+      if (splitMode) {
+        // start from the transition leaving the currently shown chord, if any
+        const from = songChordIds[practiceIdx];
+        const idx = songTransitions.findIndex((t) => t[0] === from);
+        if (idx >= 0) transitionIdx = idx;
+      }
+      renderPractice();
+    });
+
+    soundBtn.addEventListener('click', async () => {
+      soundBtn.disabled = true;
+      try {
+        const { ctx, buffers } = await practiceAudio();
+        if (splitMode && songTransitions.length > 0) {
+          const [a, b] = songTransitions[transitionIdx];
+          const chordA = chords.get(a);
+          const chordB = chords.get(b);
+          if (chordA) strumChord(ctx, ctx.destination, buffers, chordA, { spread: 0.045 });
+          if (chordB) strumChord(ctx, ctx.destination, buffers, chordB, { when: ctx.currentTime + 1.1, spread: 0.045 });
+        } else {
+          const chord = chords.get(displayedChordId());
+          if (chord) strumChord(ctx, ctx.destination, buffers, chord, { spread: 0.045 });
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setTimeout(() => (soundBtn.disabled = false), 400);
+      }
+    });
+
+    let previewing = false;
+    previewBtn.addEventListener('click', async () => {
+      if (previewing || !player) return;
+      previewing = true;
+      previewBtn.disabled = true;
+      try {
+        const pattern = shownPatternId ? patterns.get(shownPatternId) : null;
+        const chord = chords.get(displayedChordId());
+        if (!pattern || !chord) return;
+        const { ctx, buffers } = await practiceAudio();
+        const stepDur = (60 / player.getBpm()) * (timeline.beatsPerBar / pattern.steps.length);
+        const t0 = ctx.currentTime + 0.1;
+        pattern.steps.forEach((step, i) => {
+          if (step.direction === '-') return;
+          strumChord(ctx, ctx.destination, buffers, chord, {
+            when: t0 + i * stepDur,
+            direction: step.direction,
+            spread: 0.01,
+            stringMask: pattern.strings,
+          });
+        });
+        await new Promise<void>((resolve) => {
+          const frame = (): void => {
+            if (disposed) return resolve();
+            const stepFloat = (ctx.currentTime - t0) / stepDur;
+            if (stepFloat >= pattern.steps.length) return resolve();
+            strumDisplay.update(Math.max(0, stepFloat));
+            requestAnimationFrame(frame);
+          };
+          requestAnimationFrame(frame);
+        });
+        strumDisplay.update(null);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        previewing = false;
+        previewBtn.disabled = false;
+      }
+    });
+
+    // Practice controls show only while not actively playing
+    function setPracticeVisible(visible: boolean): void {
+      root.querySelectorAll<HTMLElement>('.practice-controls').forEach((el) => {
+        el.style.display = visible ? '' : 'none';
+      });
+      if (!visible) {
+        splitMode = false;
+        splitBtn.setAttribute('aria-pressed', 'false');
+        splitView.hidden = true;
+        singleView.style.display = '';
+      }
+    }
+
     // Initial static view: first step of the song
     showStep(0);
     strumDisplay.update(null);
+    renderPractice();
 
     // ---- rAF loop ----
     let lastCountBeat = 0;
+    let lastState = '';
     function frame(): void {
       if (disposed || !player) return;
       const pos = player.getPosition();
+
+      if (pos.state !== lastState) {
+        const active = pos.state === 'playing' || pos.state === 'countIn';
+        setPracticeVisible(!active);
+        if (!active && shownChordId) {
+          // Land practice mode on whatever chord playback stopped at
+          const idx = songChordIds.indexOf(shownChordId);
+          if (idx >= 0) practiceIdx = idx;
+        }
+        lastState = pos.state;
+      }
 
       if (pos.state === 'countIn' && pos.countInBeat !== null) {
         overlay.classList.add('visible');
@@ -276,5 +467,6 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     document.removeEventListener('visibilitychange', onVisibility);
     releaseWakeLock();
     void player?.dispose();
+    void practiceCtx?.close();
   };
 }

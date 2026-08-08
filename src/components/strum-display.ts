@@ -170,7 +170,10 @@ export function createStrumDisplay(): StrumDisplay {
       highlightRect.setAttribute('opacity', '0');
       pick.setAttribute('opacity', '0');
       if (lastStep !== -1) {
-        arrowNodes.forEach((a) => a.setAttribute('font-size', '34'));
+        arrowNodes.forEach((a, idx) => {
+          a.setAttribute('font-size', '34');
+          a.setAttribute('fill', pattern!.steps[idx].direction === '-' ? colors.dim : colors.text);
+        });
         stringLines.forEach((l, s) => resetString(l, s));
         lastStep = -1;
       }
