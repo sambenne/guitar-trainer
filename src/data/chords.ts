@@ -1,0 +1,136 @@
+import type { Chord } from '../types/models';
+
+/** Preset chords, read-only. Strings are low E → high e. */
+export const PRESET_CHORDS: Chord[] = [
+  {
+    id: 'a',
+    name: 'A',
+    startFret: 1,
+    strings: [
+      { state: 'muted' },
+      { state: 'open' },
+      { state: 'fretted', fret: 2, finger: 1 },
+      { state: 'fretted', fret: 2, finger: 2 },
+      { state: 'fretted', fret: 2, finger: 3 },
+      { state: 'open' },
+    ],
+  },
+  {
+    id: 'am',
+    name: 'Am',
+    startFret: 1,
+    strings: [
+      { state: 'muted' },
+      { state: 'open' },
+      { state: 'fretted', fret: 2, finger: 2 },
+      { state: 'fretted', fret: 2, finger: 3 },
+      { state: 'fretted', fret: 1, finger: 1 },
+      { state: 'open' },
+    ],
+  },
+  {
+    id: 'c',
+    name: 'C',
+    startFret: 1,
+    strings: [
+      { state: 'muted' },
+      { state: 'fretted', fret: 3, finger: 3 },
+      { state: 'fretted', fret: 2, finger: 2 },
+      { state: 'open' },
+      { state: 'fretted', fret: 1, finger: 1 },
+      { state: 'open' },
+    ],
+  },
+  {
+    id: 'd',
+    name: 'D',
+    startFret: 1,
+    strings: [
+      { state: 'muted' },
+      { state: 'muted' },
+      { state: 'open' },
+      { state: 'fretted', fret: 2, finger: 1 },
+      { state: 'fretted', fret: 3, finger: 3 },
+      { state: 'fretted', fret: 2, finger: 2 },
+    ],
+  },
+  {
+    id: 'dm',
+    name: 'Dm',
+    startFret: 1,
+    strings: [
+      { state: 'muted' },
+      { state: 'muted' },
+      { state: 'open' },
+      { state: 'fretted', fret: 2, finger: 2 },
+      { state: 'fretted', fret: 3, finger: 3 },
+      { state: 'fretted', fret: 1, finger: 1 },
+    ],
+  },
+  {
+    id: 'e',
+    name: 'E',
+    startFret: 1,
+    strings: [
+      { state: 'open' },
+      { state: 'fretted', fret: 2, finger: 2 },
+      { state: 'fretted', fret: 2, finger: 3 },
+      { state: 'fretted', fret: 1, finger: 1 },
+      { state: 'open' },
+      { state: 'open' },
+    ],
+  },
+  {
+    id: 'em',
+    name: 'Em',
+    startFret: 1,
+    strings: [
+      { state: 'open' },
+      { state: 'fretted', fret: 2, finger: 2 },
+      { state: 'fretted', fret: 2, finger: 3 },
+      { state: 'open' },
+      { state: 'open' },
+      { state: 'open' },
+    ],
+  },
+  {
+    id: 'f',
+    name: 'F',
+    startFret: 1,
+    strings: [
+      { state: 'fretted', fret: 1, finger: 1 },
+      { state: 'fretted', fret: 3, finger: 3 },
+      { state: 'fretted', fret: 3, finger: 4 },
+      { state: 'fretted', fret: 2, finger: 2 },
+      { state: 'fretted', fret: 1, finger: 1 },
+      { state: 'fretted', fret: 1, finger: 1 },
+    ],
+  },
+  {
+    id: 'g',
+    name: 'G',
+    startFret: 1,
+    strings: [
+      { state: 'fretted', fret: 3, finger: 2 },
+      { state: 'fretted', fret: 2, finger: 1 },
+      { state: 'open' },
+      { state: 'open' },
+      { state: 'open' },
+      { state: 'fretted', fret: 3, finger: 3 },
+    ],
+  },
+  {
+    // The "second chord" of A Horse With No Name (D6add9/F#).
+    id: 'd69',
+    name: 'D6/9',
+    startFret: 1,
+    strings: [
+      { state: 'fretted', fret: 2, finger: 2 },
+      { state: 'open' },
+      { state: 'open' },
+      { state: 'fretted', fret: 2, finger: 3 },
+      { state: 'open' },
+      { state: 'open' },
+    ],
+  },
+];
