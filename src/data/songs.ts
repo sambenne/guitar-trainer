@@ -351,6 +351,69 @@ export const PRESET_SONGS: Song[] = [
     ],
   },
   {
+    // Charted in G (original key E) so it stays in open chords.
+    id: 'way-maker',
+    title: 'Way Maker',
+    artist: 'Sinach',
+    bpm: 68,
+    timeSignature: { beats: 4, noteValue: 4 },
+    sections: [
+      {
+        id: 'verse',
+        name: 'Verse',
+        repeat: 4,
+        bars: [
+          { chordId: 'g', patternId: 'p-campfire' },
+          { chordId: 'd', patternId: 'p-campfire' },
+          { chordId: 'em', patternId: 'p-campfire' },
+          { chordId: 'c', patternId: 'p-campfire' },
+        ],
+      },
+      {
+        id: 'chorus',
+        name: 'Chorus',
+        repeat: 4,
+        bars: [
+          { chordId: 'g', patternId: 'p-campfire' },
+          { chordId: 'd', patternId: 'p-campfire' },
+          { chordId: 'em', patternId: 'p-campfire' },
+          { chordId: 'c', patternId: 'p-campfire' },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'ten-thousand-reasons',
+    title: '10,000 Reasons (Bless the Lord)',
+    artist: 'Matt Redman',
+    bpm: 73,
+    timeSignature: { beats: 4, noteValue: 4 },
+    sections: [
+      {
+        id: 'chorus',
+        name: 'Chorus',
+        repeat: 2,
+        bars: [
+          { chordId: 'c', patternId: 'p-campfire' },
+          { chordId: 'g', patternId: 'p-campfire' },
+          { chordId: 'd', patternId: 'p-campfire' },
+          { chordId: 'em', patternId: 'p-campfire' },
+        ],
+      },
+      {
+        id: 'verse',
+        name: 'Verse',
+        repeat: 2,
+        bars: [
+          { chordId: 'c', patternId: 'p-campfire' },
+          { chordId: 'g', patternId: 'p-campfire' },
+          { chordId: 'd', patternId: 'p-campfire' },
+          { chordId: 'em', patternId: 'p-campfire' },
+        ],
+      },
+    ],
+  },
+  {
     id: 'zombie',
     title: 'Zombie',
     artist: 'The Cranberries',
