@@ -62,14 +62,28 @@ function checkChord(c: unknown, i: number): asserts c is Chord {
   if (!isObj(c)) fail(`chords[${i}] is not an object`);
   if (typeof c.id !== 'string' || !c.id) fail(`chords[${i}].id missing`);
   if (typeof c.name !== 'string' || !c.name) fail(`chords[${i}].name missing`);
-  if (typeof c.startFret !== 'number' || c.startFret < 1) fail(`chords[${i}].startFret invalid`);
+  if (typeof c.startFret !== 'number' || !Number.isInteger(c.startFret) || c.startFret < 1 || c.startFret > 15) {
+    fail(`chords[${i}].startFret invalid`);
+  }
   if (!Array.isArray(c.strings) || c.strings.length !== STRING_COUNT) fail(`chords[${i}].strings must have 6 entries`);
+  const startFret = c.startFret;
   c.strings.forEach((s: unknown, j: number) => {
     if (!isObj(s) || !['open', 'muted', 'fretted'].includes(s.state as string)) {
       fail(`chords[${i}].strings[${j}].state invalid`);
     }
-    if (s.state === 'fretted' && (typeof s.fret !== 'number' || s.fret < 1)) {
-      fail(`chords[${i}].strings[${j}].fret invalid`);
+    if (s.state === 'fretted') {
+      if (typeof s.fret !== 'number' || !Number.isInteger(s.fret) || s.fret < 1) {
+        fail(`chords[${i}].strings[${j}].fret invalid`);
+      }
+      if (s.fret < startFret || s.fret >= startFret + 5) {
+        fail(`chords[${i}].strings[${j}].fret is outside the five-fret window`);
+      }
+    }
+    if (
+      s.finger !== undefined &&
+      (typeof s.finger !== 'number' || !Number.isInteger(s.finger) || s.finger < 1 || s.finger > 4)
+    ) {
+      fail(`chords[${i}].strings[${j}].finger invalid`);
     }
   });
 }
@@ -77,9 +91,13 @@ function checkChord(c: unknown, i: number): asserts c is Chord {
 function checkPattern(p: unknown, i: number): asserts p is StrummingPattern {
   if (!isObj(p)) fail(`patterns[${i}] is not an object`);
   if (typeof p.id !== 'string' || !p.id) fail(`patterns[${i}].id missing`);
+  const steps = p.steps;
+  if (!Array.isArray(steps) || steps.length === 0) fail(`patterns[${i}].steps must be non-empty`);
+  if (steps.length < 4 || steps.length > 24 || steps.length % 2 !== 0) {
+    fail(`patterns[${i}].steps must contain 2–12 complete beats`);
+  }
   if (typeof p.name !== 'string' || !p.name) fail(`patterns[${i}].name missing`);
-  if (!Array.isArray(p.steps) || p.steps.length === 0) fail(`patterns[${i}].steps must be non-empty`);
-  p.steps.forEach((s: unknown, j: number) => {
+  steps.forEach((s: unknown, j: number) => {
     if (!isObj(s) || !['D', 'U', '-'].includes(s.direction as string)) fail(`patterns[${i}].steps[${j}] invalid`);
   });
   if (!Array.isArray(p.strings) || p.strings.length !== STRING_COUNT || p.strings.some((b) => typeof b !== 'boolean')) {

@@ -46,7 +46,8 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
   })();
 
   function defaultBar(): { chordId: string; patternId: string } {
-    return { chordId: chords[0]?.id ?? '', patternId: patterns[0]?.id ?? '' };
+    const compatiblePattern = patterns.find((pattern) => pattern.steps.length === draft.timeSignature.beats * 2);
+    return { chordId: chords[0]?.id ?? '', patternId: compatiblePattern?.id ?? '' };
   }
 
   function build(): void {
@@ -121,22 +122,55 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
     (root.querySelector('.beats-down') as HTMLElement).addEventListener('click', () => {
       draft.timeSignature.beats = Math.max(2, draft.timeSignature.beats - 1);
       syncSteppers();
+      renderSections();
     });
     (root.querySelector('.beats-up') as HTMLElement).addEventListener('click', () => {
       draft.timeSignature.beats = Math.min(12, draft.timeSignature.beats + 1);
       syncSteppers();
+      renderSections();
     });
     syncSteppers();
 
-    function chordOptions(selected: string): string {
-      return chords
-        .map((c) => `<option value="${c.id}" ${c.id === selected ? 'selected' : ''}>${c.name}</option>`)
-        .join('');
+    function populateChordOptions(select: HTMLSelectElement, selected: string): void {
+      for (const chord of chords) {
+        const option = document.createElement('option');
+        option.value = chord.id;
+        option.textContent = chord.name;
+        option.selected = chord.id === selected;
+        select.appendChild(option);
+      }
     }
-    function patternOptions(selected: string): string {
-      return patterns
-        .map((p) => `<option value="${p.id}" ${p.id === selected ? 'selected' : ''}>${p.name}</option>`)
-        .join('');
+    function populatePatternOptions(select: HTMLSelectElement, selected: string): void {
+      const requiredSteps = draft.timeSignature.beats * 2;
+      const compatible = patterns.filter((pattern) => pattern.steps.length === requiredSteps);
+      const selectedPattern = patterns.find((pattern) => pattern.id === selected);
+
+      if (selectedPattern && selectedPattern.steps.length !== requiredSteps) {
+        const warning = document.createElement('option');
+        warning.value = selectedPattern.id;
+        warning.textContent = `Warning: ${selectedPattern.name} (${selectedPattern.steps.length / 2} beats)`;
+        warning.selected = true;
+        warning.disabled = true;
+        select.appendChild(warning);
+      }
+
+      if (compatible.length === 0) {
+        const empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent = `Create a ${draft.timeSignature.beats}-beat pattern first`;
+        empty.selected = !selectedPattern;
+        empty.disabled = true;
+        select.appendChild(empty);
+        return;
+      }
+
+      for (const pattern of compatible) {
+        const option = document.createElement('option');
+        option.value = pattern.id;
+        option.textContent = pattern.name;
+        option.selected = pattern.id === selected;
+        select.appendChild(option);
+      }
     }
 
     function renderSections(): void {
@@ -186,8 +220,8 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
           row.className = 'bar-row';
           row.innerHTML = `
             <span class="bar-num">${bi + 1}</span>
-            <select class="bar-chord" aria-label="Chord">${chordOptions(bar.chordId)}</select>
-            <select class="bar-pattern" aria-label="Pattern">${patternOptions(bar.patternId)}</select>
+            <select class="bar-chord" aria-label="Chord"></select>
+            <select class="bar-pattern" aria-label="Pattern"></select>
             <div class="bar-actions">
               <button class="bar-up" aria-label="Move up" ${bi === 0 ? 'disabled' : ''}>↑</button>
               <button class="bar-down" aria-label="Move down" ${bi === section.bars.length - 1 ? 'disabled' : ''}>↓</button>
@@ -195,10 +229,15 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
               <button class="bar-del danger" aria-label="Delete">✕</button>
             </div>
           `;
-          (row.querySelector('.bar-chord') as HTMLSelectElement).addEventListener('change', (e) => {
+          const chordSelect = row.querySelector('.bar-chord') as HTMLSelectElement;
+          const patternSelect = row.querySelector('.bar-pattern') as HTMLSelectElement;
+          populateChordOptions(chordSelect, bar.chordId);
+          populatePatternOptions(patternSelect, bar.patternId);
+
+          chordSelect.addEventListener('change', (e) => {
             bar.chordId = (e.target as HTMLSelectElement).value;
           });
-          (row.querySelector('.bar-pattern') as HTMLSelectElement).addEventListener('change', (e) => {
+          patternSelect.addEventListener('change', (e) => {
             bar.patternId = (e.target as HTMLSelectElement).value;
           });
           (row.querySelector('.bar-up') as HTMLElement).addEventListener('click', () => {
@@ -248,6 +287,17 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
       draft.title = draft.title.trim();
       draft.artist = draft.artist?.trim() || undefined;
       draft.sections.forEach((s) => (s.name = s.name.trim() || 'Section'));
+      const requiredSteps = draft.timeSignature.beats * 2;
+      const patternMap = new Map(patterns.map((pattern) => [pattern.id, pattern]));
+      const hasIncompatiblePattern = draft.sections.some((section) =>
+        section.bars.some((bar) => patternMap.get(bar.patternId)?.steps.length !== requiredSteps),
+      );
+      if (hasIncompatiblePattern) {
+        errorEl.textContent =
+          `Every bar needs a ${draft.timeSignature.beats}-beat pattern with ${requiredSteps} eighth-note steps.`;
+        return;
+      }
+
       await repo.saveSong(draft);
       navigate('/library');
     });

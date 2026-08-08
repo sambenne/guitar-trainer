@@ -34,6 +34,17 @@ export interface Timeline {
   sections: TimelineSection[];
 }
 
+export interface PlaybackLoopRange {
+  start: number;
+  end: number;
+}
+
+export interface UpcomingChordChange {
+  index: number;
+  /** Musical distance from the current step's start, including a loop wrap when needed. */
+  beatsFromStepStart: number;
+}
+
 /**
  * Compile a song into a flat, beat-positioned step list. Pure — no audio, no DOM.
  * BPM is deliberately absent: beats convert to seconds only at schedule time.
@@ -54,6 +65,13 @@ export function compileTimeline(song: Song, patterns: Map<string, StrummingPatte
           throw new Error(`Unknown or empty pattern "${bar.patternId}" in song "${song.id}"`);
         }
         const durationBeats = beatsPerBar / pattern.steps.length;
+        const requiredSteps = beatsPerBar * 2;
+        if (pattern.steps.length !== requiredSteps) {
+          throw new Error(
+            `Pattern "${bar.patternId}" has ${pattern.steps.length} steps; ` +
+              `${song.timeSignature.beats}/${song.timeSignature.noteValue} requires ${requiredSteps}`,
+          );
+        }
         pattern.steps.forEach((strum, stepIdx) => {
           steps.push({
             atBeat,
@@ -85,5 +103,44 @@ export function nextChordChange(timeline: Timeline, stepIdx: number): number | n
   for (let i = stepIdx + 1; i < timeline.steps.length; i++) {
     if (timeline.steps[i].chordId !== current.chordId) return i;
   }
+  return null;
+}
+
+/** Find the next chord the player will actually reach, respecting an optional loop and its wrap. */
+export function nextChordChangeForPlayback(
+  timeline: Timeline,
+  stepIdx: number,
+  loop: PlaybackLoopRange | null,
+): UpcomingChordChange | null {
+  const current = timeline.steps[stepIdx];
+  if (!current) return null;
+
+  const rangeStart = loop ? Math.max(0, loop.start) : 0;
+  const rangeEnd = loop ? Math.min(timeline.steps.length, loop.end) : timeline.steps.length;
+  if (rangeStart >= rangeEnd) return null;
+
+  const forwardEnd = loop && stepIdx < rangeEnd ? rangeEnd : timeline.steps.length;
+  for (let i = stepIdx + 1; i < forwardEnd; i++) {
+    if (timeline.steps[i].chordId !== current.chordId) {
+      return { index: i, beatsFromStepStart: timeline.steps[i].atBeat - current.atBeat };
+    }
+  }
+
+  if (!loop) return null;
+
+  const rangeStartBeat = timeline.steps[rangeStart].atBeat;
+  const rangeEndBeat = rangeEnd === timeline.steps.length ? timeline.totalBeats : timeline.steps[rangeEnd].atBeat;
+  const beatDistanceToWrap = Math.max(0, rangeEndBeat - current.atBeat);
+  const wrapSearchEnd = Math.min(stepIdx + 1, rangeEnd);
+
+  for (let i = rangeStart; i < wrapSearchEnd; i++) {
+    if (timeline.steps[i].chordId !== current.chordId) {
+      return {
+        index: i,
+        beatsFromStepStart: beatDistanceToWrap + (timeline.steps[i].atBeat - rangeStartBeat),
+      };
+    }
+  }
+
   return null;
 }

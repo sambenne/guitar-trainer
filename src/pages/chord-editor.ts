@@ -228,7 +228,13 @@ export function renderChordEditor(root: HTMLElement, ctx: RouteContext): () => v
     });
 
     function setStartFret(next: number): void {
-      draft.startFret = Math.min(15, Math.max(1, next));
+      const startFret = Math.min(15, Math.max(1, next));
+      const delta = startFret - draft.startFret;
+      if (delta === 0) return;
+      draft.strings = draft.strings.map((string) =>
+        string.state === 'fretted' && string.fret ? { ...string, fret: string.fret + delta } : string,
+      );
+      draft.startFret = startFret;
       fretValue.textContent = String(draft.startFret);
       renderBoard();
     }
@@ -243,6 +249,16 @@ export function renderChordEditor(root: HTMLElement, ctx: RouteContext): () => v
         return;
       }
       draft.name = draft.name.trim();
+      const hasHiddenFinger = draft.strings.some(
+        (string) =>
+          string.state === 'fretted' &&
+          (!string.fret || string.fret < draft.startFret || string.fret >= draft.startFret + FRETS_SHOWN),
+      );
+      if (hasHiddenFinger) {
+        errorEl.textContent = 'Every fretted note must be visible within the five-fret window.';
+        return;
+      }
+
       await repo.saveChord(draft);
       navigate('/editor');
     });

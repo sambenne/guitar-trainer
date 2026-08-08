@@ -19,7 +19,12 @@ const chord: Chord = {
 const pattern: StrummingPattern = {
   id: 'my-pattern',
   name: 'Mine',
-  steps: [{ direction: 'D' }, { direction: 'U' }],
+  steps: [
+    { direction: 'D' },
+    { direction: 'U' },
+    { direction: 'D' },
+    { direction: 'U' },
+  ],
   strings: [true, true, true, true, true, true],
 };
 
@@ -65,11 +70,31 @@ describe('parseBackup', () => {
 
   it('rejects a pattern with an invalid direction', () => {
     const bad = backup({
-      patterns: [{ ...pattern, steps: [{ direction: 'X' as never }] }],
+      patterns: [
+        {
+          ...pattern,
+          steps: [{ direction: 'X' as never }, ...pattern.steps.slice(1)],
+        },
+      ],
     });
     expect(() => parseBackup(JSON.stringify(bad))).toThrow(/steps\[0\]/);
   });
 
+
+  it('rejects a pattern with an incomplete beat', () => {
+    const bad = backup({ patterns: [{ ...pattern, steps: pattern.steps.slice(0, 3) }] });
+    expect(() => parseBackup(JSON.stringify(bad))).toThrow(/complete beats/);
+  });
+
+  it('rejects a chord whose finger is outside the visible fret window', () => {
+    const badChord: Chord = {
+      ...chord,
+      strings: chord.strings.map((string, index) =>
+        index === 2 ? { state: 'fretted', fret: 7, finger: 1 } : string,
+      ),
+    };
+    expect(() => parseBackup(JSON.stringify(backup({ chords: [badChord] })))).toThrow(/five-fret window/);
+  });
   it('rejects a song with out-of-range bpm', () => {
     const bad = backup({ songs: [{ ...song, bpm: 999 }] });
     expect(() => parseBackup(JSON.stringify(bad))).toThrow(/bpm/);

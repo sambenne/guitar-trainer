@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compileTimeline, nextChordChange } from '../src/audio/timeline';
+import { compileTimeline, nextChordChange, nextChordChangeForPlayback } from '../src/audio/timeline';
 import type { Song, StrummingPattern } from '../src/types/models';
 
 const eighthPattern: StrummingPattern = {
@@ -21,7 +21,16 @@ const eighthPattern: StrummingPattern = {
 const quarterPattern: StrummingPattern = {
   id: 'p4',
   name: 'Quarters',
-  steps: [{ direction: 'D' }, { direction: 'D' }, { direction: 'D' }, { direction: 'D' }],
+  steps: [
+    { direction: 'D' },
+    { direction: '-' },
+    { direction: 'D' },
+    { direction: '-' },
+    { direction: 'D' },
+    { direction: '-' },
+    { direction: 'D' },
+    { direction: '-' },
+  ],
   strings: [true, true, true, true, true, true],
 };
 
@@ -60,8 +69,8 @@ function makeSong(overrides: Partial<Song> = {}): Song {
 describe('compileTimeline', () => {
   it('expands sections, repeats and bars into a flat step list', () => {
     const tl = compileTimeline(makeSong(), patterns);
-    // Verse: 2 repeats × 2 bars × 8 steps = 32; Chorus: 1 × 1 × 4 = 4
-    expect(tl.steps).toHaveLength(36);
+    // Verse: 2 repeats × 2 bars × 8 steps = 32; Chorus: 1 × 1 × 8 = 8
+    expect(tl.steps).toHaveLength(40);
     expect(tl.totalBeats).toBe(20); // 4 bars verse + 1 bar chorus, 4 beats each
     expect(tl.beatsPerBar).toBe(4);
   });
@@ -73,9 +82,9 @@ describe('compileTimeline', () => {
     expect(tl.steps[1].atBeat).toBe(0.5);
     expect(tl.steps[8].atBeat).toBe(4); // second bar starts on beat 4
     expect(tl.steps[8].chordId).toBe('d69');
-    // Chorus quarter pattern: 4 steps over 4 beats
+    // Quarter strokes still occupy an eight-step eighth-note grid
     const chorusFirst = tl.steps[32];
-    expect(chorusFirst.durationBeats).toBe(1);
+    expect(chorusFirst.durationBeats).toBe(0.5);
     expect(chorusFirst.atBeat).toBe(16);
   });
 
@@ -90,7 +99,7 @@ describe('compileTimeline', () => {
     const tl = compileTimeline(makeSong(), patterns);
     expect(tl.sections).toEqual([
       { name: 'Verse', stepStart: 0, stepEnd: 32 },
-      { name: 'Chorus', stepStart: 32, stepEnd: 36 },
+      { name: 'Chorus', stepStart: 32, stepEnd: 40 },
     ]);
   });
 
@@ -114,8 +123,19 @@ describe('compileTimeline', () => {
     song.sections[0].bars[0].patternId = 'nope';
     expect(() => compileTimeline(song, patterns)).toThrow(/nope/);
   });
-});
 
+  it('rejects a pattern whose eighth-note length does not match the bar', () => {
+    const incompatible: StrummingPattern = {
+      ...eighthPattern,
+      id: 'short',
+      steps: eighthPattern.steps.slice(0, 4),
+    };
+    const song = makeSong();
+    song.sections[0].bars[0].patternId = incompatible.id;
+    expect(() => compileTimeline(song, new Map([...patterns, [incompatible.id, incompatible]]))).toThrow(/requires 8/);
+  });
+
+});
 describe('nextChordChange', () => {
   it('finds the next step with a different chord', () => {
     const tl = compileTimeline(makeSong(), patterns);
@@ -125,7 +145,30 @@ describe('nextChordChange', () => {
 
   it('returns null when the chord never changes again', () => {
     const tl = compileTimeline(makeSong(), patterns);
-    expect(nextChordChange(tl, 35)).toBeNull();
+    expect(nextChordChange(tl, 39)).toBeNull();
     expect(nextChordChange(tl, 999)).toBeNull();
+  });
+});
+
+describe('nextChordChangeForPlayback', () => {
+  it('wraps to the first different chord in a full-song loop', () => {
+    const tl = compileTimeline(makeSong(), patterns);
+    const change = nextChordChangeForPlayback(tl, 39, { start: 0, end: tl.steps.length });
+    expect(change).toEqual({ index: 0, beatsFromStepStart: 0.5 });
+  });
+
+  it('does not announce a chord outside a section loop', () => {
+    const tl = compileTimeline(makeSong(), patterns);
+    const verse = tl.sections[0];
+    const change = nextChordChangeForPlayback(tl, verse.stepEnd - 1, {
+      start: verse.stepStart,
+      end: verse.stepEnd,
+    });
+    expect(change).toEqual({ index: 0, beatsFromStepStart: 0.5 });
+  });
+
+  it('does not wrap when playback is set to play once', () => {
+    const tl = compileTimeline(makeSong(), patterns);
+    expect(nextChordChangeForPlayback(tl, 39, null)).toBeNull();
   });
 });

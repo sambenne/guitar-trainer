@@ -2,7 +2,7 @@ import './player.css';
 import type { RouteContext } from '../app/router';
 import { navigate } from '../app/router';
 import { getSettings } from '../app/settings';
-import { compileTimeline, nextChordChange, type Timeline } from '../audio/timeline';
+import { compileTimeline, nextChordChangeForPlayback, type Timeline } from '../audio/timeline';
 import { createPlayer, type Player } from '../audio/scheduler';
 import { loadSampler, strumChord } from '../audio/sampler';
 import { createChordDiagram } from '../components/chord-diagram';
@@ -68,7 +68,7 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     try {
       timeline = compileTimeline(song, patterns);
     } catch (err) {
-      root.innerHTML = `<div class="page"><p class="muted">This song references a missing pattern and can't be played.</p></div>`;
+      root.innerHTML = `<div class="page"><p class="muted">This song has a missing or incompatible strumming pattern. Edit the song and choose a pattern that matches its beats per bar.</p></div>`;
       console.error(err);
       return;
     }
@@ -164,10 +164,10 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     root.querySelectorAll<HTMLElement>('.split-half').forEach((half, i) => half.appendChild(splitDiagrams[i].svg));
 
     // Loop selector: full song (default), each section, or play through once
-    loopSelect.innerHTML =
-      `<option value="full">Loop: Full song</option>` +
-      timeline.sections.map((s, i) => `<option value="sec-${i}">Loop: ${s.name}</option>`).join('') +
-      `<option value="none">Play once</option>`;
+    loopSelect.replaceChildren();
+    loopSelect.add(new Option('Loop: Full song', 'full'));
+    timeline.sections.forEach((section, i) => loopSelect.add(new Option(`Loop: ${section.name}`, `sec-${i}`)));
+    loopSelect.add(new Option('Play once', 'none'));
 
     bpmValue.textContent = String(player.getBpm());
     metroBtn.setAttribute('aria-pressed', String(settings.metronomeEnabled));
@@ -196,16 +196,16 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
       strumDisplay.update(step.stepIdx + (stepFloat - idx));
 
       // Next chord + pulse
-      const changeIdx = nextChordChange(timeline, idx);
-      if (changeIdx === null) {
+      const change = nextChordChangeForPlayback(timeline, idx, player?.getLoop() ?? null);
+      if (change === null) {
         nextChordName.textContent = '–';
         beatsLeftEl.textContent = '';
         nextChordEl.classList.remove('pulse');
       } else {
-        const changeStep = timeline.steps[changeIdx];
+        const changeStep = timeline.steps[change.index];
         nextChordName.textContent = chords.get(changeStep.chordId)?.name ?? '?';
-        const currentBeat = step.atBeat + (stepFloat - idx) * step.durationBeats;
-        const beatsAway = changeStep.atBeat - currentBeat;
+        const elapsedBeats = (stepFloat - idx) * step.durationBeats;
+        const beatsAway = change.beatsFromStepStart - elapsedBeats;
         nextChordEl.classList.toggle('pulse', beatsAway <= NEXT_CHORD_PULSE_BEATS);
         const n = Math.max(1, Math.ceil(beatsAway));
         beatsLeftEl.textContent = beatsAway <= NEXT_CHORD_PULSE_BEATS ? `${n} beat${n === 1 ? '' : 's'}` : '';

@@ -13,8 +13,8 @@ const PREVIEW_BPM = 80;
 const PREVIEW_CHORD = PRESET_CHORDS.find((c) => c.id === 'em')!;
 
 const CYCLE: Record<StrumDirection, StrumDirection> = { D: 'U', U: '-', '-': 'D' };
-const MAX_STEPS = 16;
-const MIN_STEPS = 2;
+const MAX_STEPS = 24;
+const MIN_STEPS = 4;
 
 export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () => void {
   let disposed = false;
@@ -47,6 +47,9 @@ export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () =>
           draft = structuredClone(existing);
           isNew = false;
         }
+        // Legacy data can have an odd step count, which +/− (whole beats)
+        // can never fix — pad to a complete beat so the pattern is saveable.
+        if (draft.steps.length % 2 !== 0) draft.steps.push({ direction: '-' });
       }
     }
     if (!disposed) build();
@@ -70,8 +73,8 @@ export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () =>
           <span>Pattern — tap a step to cycle D → U → −</span>
           <div class="step-chips"></div>
           <div class="add-row">
-            <button class="remove-step">− Remove step</button>
-            <button class="add-step">+ Add step</button>
+            <button class="remove-step">− Remove beat</button>
+            <button class="add-step">+ Add beat</button>
           </div>
         </div>
 
@@ -151,14 +154,14 @@ export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () =>
 
     (root.querySelector('.add-step') as HTMLElement).addEventListener('click', () => {
       if (draft.steps.length >= MAX_STEPS) return;
-      draft.steps.push({ direction: '-' });
+      draft.steps.push({ direction: 'D' }, { direction: '-' });
       renderChips();
       refreshPreview();
     });
 
     (root.querySelector('.remove-step') as HTMLElement).addEventListener('click', () => {
       if (draft.steps.length <= MIN_STEPS) return;
-      draft.steps.pop();
+      draft.steps.splice(-2, 2);
       renderChips();
       refreshPreview();
     });
@@ -222,6 +225,11 @@ export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () =>
         return;
       }
       draft.name = draft.name.trim();
+      if (draft.steps.length < MIN_STEPS || draft.steps.length > MAX_STEPS || draft.steps.length % 2 !== 0) {
+        errorEl.textContent = 'Patterns must contain 2–12 complete beats (two eighth-note steps per beat).';
+        return;
+      }
+
       await repo.savePattern(draft);
       navigate('/editor');
     });
