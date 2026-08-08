@@ -133,4 +133,58 @@ export const PRESET_CHORDS: Chord[] = [
       { state: 'open' },
     ],
   },
+  // The four "anthem" shapes (Wonderwall etc.) — ring and pinky stay
+  // anchored on the 3rd fret of the B and high e strings throughout.
+  {
+    id: 'em7',
+    name: 'Em7',
+    startFret: 1,
+    strings: [
+      { state: 'open' },
+      { state: 'fretted', fret: 2, finger: 1 },
+      { state: 'fretted', fret: 2, finger: 2 },
+      { state: 'open' },
+      { state: 'fretted', fret: 3, finger: 3 },
+      { state: 'fretted', fret: 3, finger: 4 },
+    ],
+  },
+  {
+    id: 'cadd9',
+    name: 'Cadd9',
+    startFret: 1,
+    strings: [
+      { state: 'muted' },
+      { state: 'fretted', fret: 3, finger: 2 },
+      { state: 'fretted', fret: 2, finger: 1 },
+      { state: 'open' },
+      { state: 'fretted', fret: 3, finger: 3 },
+      { state: 'fretted', fret: 3, finger: 4 },
+    ],
+  },
+  {
+    id: 'dsus4',
+    name: 'Dsus4',
+    startFret: 1,
+    strings: [
+      { state: 'muted' },
+      { state: 'muted' },
+      { state: 'open' },
+      { state: 'fretted', fret: 2, finger: 1 },
+      { state: 'fretted', fret: 3, finger: 3 },
+      { state: 'fretted', fret: 3, finger: 4 },
+    ],
+  },
+  {
+    id: 'a7sus4',
+    name: 'A7sus4',
+    startFret: 1,
+    strings: [
+      { state: 'muted' },
+      { state: 'open' },
+      { state: 'fretted', fret: 2, finger: 1 },
+      { state: 'open' },
+      { state: 'fretted', fret: 3, finger: 3 },
+      { state: 'open' },
+    ],
+  },
 ];

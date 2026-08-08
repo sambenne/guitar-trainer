@@ -64,4 +64,20 @@ export const PRESET_PATTERNS: StrummingPattern[] = [
     ],
     strings: [...ALL_STRINGS],
   },
+  {
+    // Reggae feel: chop on beats 2 and 4, hand keeps moving through the rest.
+    id: 'p-skank',
+    name: 'Skank (2 & 4)',
+    steps: [
+      { direction: '-' },
+      { direction: '-' },
+      { direction: 'D' },
+      { direction: '-' },
+      { direction: '-' },
+      { direction: '-' },
+      { direction: 'D' },
+      { direction: '-' },
+    ],
+    strings: [...ALL_STRINGS],
+  },
 ];
