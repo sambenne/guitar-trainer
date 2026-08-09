@@ -1,3 +1,4 @@
+import { getSettings } from '../app/settings';
 import type { Chord } from '../types/models';
 import { STRING_COUNT } from '../types/models';
 
@@ -51,6 +52,10 @@ export function createChordDiagram(): { svg: SVGSVGElement; render: (chord: Chor
   function render(chord: Chord): void {
     svg.innerHTML = '';
 
+    // Left-handed players hold a mirror-image guitar: low E on the right.
+    const mirror = getSettings().leftHanded;
+    const stringX = (s: number): number => GRID_LEFT + (mirror ? STRING_COUNT - 1 - s : s) * STRING_GAP;
+
     const styles = getComputedStyle(document.documentElement);
     const line = styles.getPropertyValue('--border').trim() || '#444';
     const stringColor = styles.getPropertyValue('--text-dim').trim() || '#999';
@@ -75,7 +80,7 @@ export function createChordDiagram(): { svg: SVGSVGElement; render: (chord: Chor
 
     // Strings (vertical lines)
     for (let s = 0; s < STRING_COUNT; s++) {
-      const x = GRID_LEFT + s * STRING_GAP;
+      const x = stringX(s);
       svg.appendChild(
         el('line', {
           x1: x,
@@ -95,7 +100,7 @@ export function createChordDiagram(): { svg: SVGSVGElement; render: (chord: Chor
 
     // Per-string markers
     chord.strings.forEach((cs, s) => {
-      const x = GRID_LEFT + s * STRING_GAP;
+      const x = stringX(s);
       if (cs.state === 'open') {
         svg.appendChild(
           el('circle', { cx: x, cy: GRID_TOP - 16, r: 6.5, fill: 'none', stroke: textColor, 'stroke-width': 2 }),

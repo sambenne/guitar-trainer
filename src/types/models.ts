@@ -85,6 +85,8 @@ export interface Settings {
   strumVolume: number;
   /** 'lowTop' = low E at top of strum panel (default); 'highTop' = tab convention. */
   stringOrientation: 'lowTop' | 'highTop';
+  /** Mirror chord diagrams for left-handed players (low E on the right). */
+  leftHanded: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -93,4 +95,5 @@ export const DEFAULT_SETTINGS: Settings = {
   strumEnabled: true,
   strumVolume: 0.8,
   stringOrientation: 'lowTop',
+  leftHanded: false,
 };

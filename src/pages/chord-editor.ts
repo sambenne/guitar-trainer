@@ -1,6 +1,7 @@
 import './editor.css';
 import type { RouteContext } from '../app/router';
 import { navigate } from '../app/router';
+import { getSettings } from '../app/settings';
 import * as repo from '../storage/repo';
 import { STRING_COUNT, STRING_NAMES, type Chord } from '../types/models';
 
@@ -120,6 +121,9 @@ export function renderChordEditor(root: HTMLElement, ctx: RouteContext): () => v
 
     function renderBoard(): void {
       board.innerHTML = '';
+      // Mirrored for left-handed players — matches the read-only diagrams.
+      const mirror = getSettings().leftHanded;
+      const stringX = (s: number): number => GRID_LEFT + (mirror ? STRING_COUNT - 1 - s : s) * STRING_GAP;
       const styles = getComputedStyle(document.documentElement);
       const line = styles.getPropertyValue('--border').trim();
       const dim = styles.getPropertyValue('--text-dim').trim();
@@ -129,7 +133,7 @@ export function renderChordEditor(root: HTMLElement, ctx: RouteContext): () => v
 
       // String name labels under the grid
       for (let s = 0; s < STRING_COUNT; s++) {
-        board.appendChild(text(GRID_LEFT + s * STRING_GAP, H - 8, STRING_NAMES[s], 13, dim));
+        board.appendChild(text(stringX(s), H - 8, STRING_NAMES[s], 13, dim));
       }
 
       for (let f = 0; f <= FRETS_SHOWN; f++) {
@@ -146,7 +150,7 @@ export function renderChordEditor(root: HTMLElement, ctx: RouteContext): () => v
         );
       }
       for (let s = 0; s < STRING_COUNT; s++) {
-        const x = GRID_LEFT + s * STRING_GAP;
+        const x = stringX(s);
         board.appendChild(
           el('line', { x1: x, y1: GRID_TOP, x2: x, y2: GRID_BOTTOM, stroke: dim, 'stroke-width': 1.5 }),
         );
@@ -155,7 +159,7 @@ export function renderChordEditor(root: HTMLElement, ctx: RouteContext): () => v
 
       // Nut-state markers + fretted dots
       draft.strings.forEach((cs, s) => {
-        const x = GRID_LEFT + s * STRING_GAP;
+        const x = stringX(s);
         if (cs.state === 'open') {
           board.appendChild(el('circle', { cx: x, cy: GRID_TOP - 22, r: 8, fill: 'none', stroke: fg, 'stroke-width': 2 }));
         } else if (cs.state === 'muted') {

@@ -49,6 +49,13 @@ export function renderSettings(root: HTMLElement): void {
             <option value="highTop">High e at top</option>
           </select>
         </label>
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <span>
+            Left-handed
+            <span class="muted" style="display:block;font-size:12px">Mirror chord diagrams (low E on the right)</span>
+          </span>
+          <input type="checkbox" class="left-handed" style="width:22px;height:22px;min-height:0" />
+        </label>
       </div>
 
       <h2 style="font-size:16px;margin:20px 0 10px">Your data</h2>
@@ -79,6 +86,9 @@ export function renderSettings(root: HTMLElement): void {
   strumEnabled.checked = settings.strumEnabled;
   strumVolume.value = String(settings.strumVolume);
   orientation.value = settings.stringOrientation;
+  const leftHanded = root.querySelector('.left-handed') as HTMLInputElement;
+  leftHanded.checked = settings.leftHanded;
+  leftHanded.addEventListener('change', () => saveSettings({ leftHanded: leftHanded.checked }));
 
   enabled.addEventListener('change', () => saveSettings({ metronomeEnabled: enabled.checked }));
   volume.addEventListener('change', () => saveSettings({ metronomeVolume: Number(volume.value) }));
