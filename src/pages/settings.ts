@@ -30,6 +30,17 @@ export function renderSettings(root: HTMLElement): void {
         </label>
         <label style="display:flex;align-items:center;justify-content:space-between;gap:12px">
           <span>
+            Guitar sound
+            <span class="muted" style="display:block;font-size:12px">Strum the song's chords during playback</span>
+          </span>
+          <input type="checkbox" class="strum-enabled" style="width:22px;height:22px;min-height:0" />
+        </label>
+        <label style="display:flex;flex-direction:column;gap:8px">
+          <span>Guitar volume</span>
+          <input type="range" class="strum-volume" min="0" max="1" step="0.05" style="min-height:0" />
+        </label>
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <span>
             Strumming panel
             <span class="muted" style="display:block;font-size:12px">Low E at top: downstrokes move down the screen</span>
           </span>
@@ -60,12 +71,19 @@ export function renderSettings(root: HTMLElement): void {
   const orientation = root.querySelector('.orientation') as HTMLSelectElement;
   const status = root.querySelector('.data-status') as HTMLElement;
 
+  const strumEnabled = root.querySelector('.strum-enabled') as HTMLInputElement;
+  const strumVolume = root.querySelector('.strum-volume') as HTMLInputElement;
+
   enabled.checked = settings.metronomeEnabled;
   volume.value = String(settings.metronomeVolume);
+  strumEnabled.checked = settings.strumEnabled;
+  strumVolume.value = String(settings.strumVolume);
   orientation.value = settings.stringOrientation;
 
   enabled.addEventListener('change', () => saveSettings({ metronomeEnabled: enabled.checked }));
   volume.addEventListener('change', () => saveSettings({ metronomeVolume: Number(volume.value) }));
+  strumEnabled.addEventListener('change', () => saveSettings({ strumEnabled: strumEnabled.checked }));
+  strumVolume.addEventListener('change', () => saveSettings({ strumVolume: Number(strumVolume.value) }));
   orientation.addEventListener('change', () =>
     saveSettings({ stringOrientation: orientation.value as 'lowTop' | 'highTop' }),
   );

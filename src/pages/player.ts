@@ -78,8 +78,9 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     }
 
     const settings = getSettings();
-    player = createPlayer(timeline, song.bpm);
+    player = createPlayer(timeline, song.bpm, chords, patterns);
     player.setMetronome(settings.metronomeEnabled, settings.metronomeVolume);
+    player.setGuitar(settings.strumEnabled, settings.strumVolume);
 
     // ---- DOM ----
     root.innerHTML = `
@@ -95,6 +96,7 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
             <div class="bpm-value"><strong></strong><span>BPM</span></div>
             <button class="bpm-up" aria-label="Faster">+</button>
           </div>
+          <button class="guitar-btn" aria-label="Guitar sound" aria-pressed="false">🎸</button>
           <button class="metro-btn" aria-label="Metronome" aria-pressed="false">🔊</button>
         </div>
 
@@ -186,12 +188,15 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     }
     $('.capo-down').addEventListener('click', () => {
       capo = Math.max(0, capo - 1);
+      player?.setCapo(capo);
       syncCapo();
     });
     $('.capo-up').addEventListener('click', () => {
       capo = Math.min(11, capo + 1);
+      player?.setCapo(capo);
       syncCapo();
     });
+    player.setCapo(capo);
     syncCapo();
 
     // ---- State applied per-frame ----
@@ -515,6 +520,14 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
       const enabled = metroBtn.getAttribute('aria-pressed') !== 'true';
       metroBtn.setAttribute('aria-pressed', String(enabled));
       player?.setMetronome(enabled, getSettings().metronomeVolume);
+    });
+
+    const guitarBtn = $<HTMLButtonElement>('.guitar-btn');
+    guitarBtn.setAttribute('aria-pressed', String(settings.strumEnabled));
+    guitarBtn.addEventListener('click', () => {
+      const enabled = guitarBtn.getAttribute('aria-pressed') !== 'true';
+      guitarBtn.setAttribute('aria-pressed', String(enabled));
+      player?.setGuitar(enabled, getSettings().strumVolume);
     });
 
     loopSelect.addEventListener('change', () => {

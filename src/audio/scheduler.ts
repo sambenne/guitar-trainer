@@ -1,5 +1,7 @@
 import type { Timeline } from './timeline';
+import type { Chord, StrummingPattern } from '../types/models';
 import { scheduleClick } from './metronome';
+import { loadSampler, strumChord } from './sampler';
 
 /**
  * Lookahead scheduler ("A Tale of Two Clocks" pattern).
@@ -38,6 +40,10 @@ export interface Player {
   setBpm(bpm: number): void;
   getBpm(): number;
   setMetronome(enabled: boolean, volume: number): void;
+  /** Strummed chord audio during playback. */
+  setGuitar(enabled: boolean, volume: number): void;
+  /** Capo fret — strums sound this many semitones higher. */
+  setCapo(fret: number): void;
   /** Loop a step range [start, end); null disables looping (song plays once). */
   setLoop(range: { start: number; end: number } | null): void;
   getLoop(): { start: number; end: number } | null;
@@ -45,13 +51,23 @@ export interface Player {
   dispose(): Promise<void>;
 }
 
-export function createPlayer(timeline: Timeline, initialBpm: number): Player {
+export function createPlayer(
+  timeline: Timeline,
+  initialBpm: number,
+  chords: Map<string, Chord>,
+  patterns: Map<string, StrummingPattern>,
+): Player {
   let ctx: AudioContext | null = null;
   let masterGain: GainNode | null = null;
+  let guitarGain: GainNode | null = null;
 
   let bpm = initialBpm;
   let metronomeEnabled = true;
   let metronomeVolume = 0.8;
+  let guitarEnabled = true;
+  let guitarVolume = 0.8;
+  let capo = 0;
+  let sampleBuffers: Map<number, AudioBuffer> | null = null;
 
   let state: PlaybackState = 'stopped';
   let loop: { start: number; end: number } | null = { start: 0, end: timeline.steps.length };
@@ -74,7 +90,32 @@ export function createPlayer(timeline: Timeline, initialBpm: number): Player {
       masterGain = ctx.createGain();
       masterGain.connect(ctx.destination);
     }
+    if (!guitarGain) {
+      guitarGain = ctx.createGain();
+      guitarGain.gain.value = guitarVolume;
+      guitarGain.connect(masterGain);
+    }
+    if (guitarEnabled && !sampleBuffers) {
+      // Fire and forget — decoding usually finishes during the count-in.
+      void loadSampler(ctx).then((buffers) => (sampleBuffers = buffers)).catch(() => {});
+    }
     return ctx;
+  }
+
+  /** Strum the step's chord at its exact scheduled time. */
+  function scheduleStrumForStep(stepIdx: number, startTime: number): void {
+    if (!guitarEnabled || !ctx || !guitarGain || !sampleBuffers) return;
+    const step = timeline.steps[stepIdx];
+    if (step.direction === '-') return;
+    const chord = chords.get(step.chordId);
+    if (!chord) return;
+    strumChord(ctx, guitarGain, sampleBuffers, chord, {
+      when: startTime,
+      direction: step.direction,
+      spread: 0.008,
+      stringMask: patterns.get(step.patternId)?.strings,
+      capo,
+    });
   }
 
   /** Schedule metronome clicks for every integer beat inside a step's window. */
@@ -107,6 +148,7 @@ export function createPlayer(timeline: Timeline, initialBpm: number): Player {
       const step = timeline.steps[nextIdx];
       const duration = step.durationBeats * secondsPerBeat();
       scheduleClicksForStep(nextIdx, nextTime);
+      scheduleStrumForStep(nextIdx, nextTime);
       started.push({ idx: nextIdx, start: nextTime, end: nextTime + duration });
       nextIdx++;
       nextTime += duration;
@@ -165,6 +207,7 @@ export function createPlayer(timeline: Timeline, initialBpm: number): Player {
       // Kill any already-scheduled clicks
       masterGain.disconnect();
       masterGain = null;
+      guitarGain = null; // ensureContext rebuilds the chain on next play
     }
     if (ctx && ctx.state === 'suspended') await ctx.resume();
   }
@@ -215,6 +258,17 @@ export function createPlayer(timeline: Timeline, initialBpm: number): Player {
     setMetronome(enabled: boolean, volume: number) {
       metronomeEnabled = enabled;
       metronomeVolume = volume;
+    },
+    setGuitar(enabled: boolean, volume: number) {
+      guitarEnabled = enabled;
+      guitarVolume = volume;
+      if (guitarGain) guitarGain.gain.value = volume;
+      if (enabled && ctx && !sampleBuffers) {
+        void loadSampler(ctx).then((buffers) => (sampleBuffers = buffers)).catch(() => {});
+      }
+    },
+    setCapo(fret: number) {
+      capo = Math.min(11, Math.max(0, Math.round(fret)));
     },
     setLoop(range) {
       loop = range;

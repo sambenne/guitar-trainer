@@ -321,9 +321,15 @@
   flex-shrink: 0;
 }
 
-.transport .metro-btn[aria-pressed='true'] {
+.metro-btn[aria-pressed='true'],
+.guitar-btn[aria-pressed='true'] {
   color: var(--accent);
   border-color: var(--accent-dim);
+}
+
+.metro-btn[aria-pressed='false'],
+.guitar-btn[aria-pressed='false'] {
+  opacity: 0.45;
 }
 
 .count-in-overlay {

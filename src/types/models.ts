@@ -79,6 +79,10 @@ export interface Settings {
   metronomeEnabled: boolean;
   /** 0–1 */
   metronomeVolume: number;
+  /** Play the song's strummed chords during playback. */
+  strumEnabled: boolean;
+  /** 0–1 */
+  strumVolume: number;
   /** 'lowTop' = low E at top of strum panel (default); 'highTop' = tab convention. */
   stringOrientation: 'lowTop' | 'highTop';
 }
@@ -86,5 +90,7 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   metronomeEnabled: true,
   metronomeVolume: 0.8,
+  strumEnabled: true,
+  strumVolume: 0.8,
   stringOrientation: 'lowTop',
 };
