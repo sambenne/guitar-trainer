@@ -4,6 +4,7 @@ import { addRoute, currentPath, startRouter } from './app/router';
 import { renderChordEditor } from './pages/chord-editor';
 import { renderChordsPage } from './pages/chords';
 import { renderEditorHub } from './pages/editor-hub';
+import { renderProgressPage } from './pages/progress';
 import { renderLibrary } from './pages/library';
 import { renderPatternEditor } from './pages/pattern-editor';
 import { renderPlayer } from './pages/player';
@@ -22,6 +23,11 @@ const NAV_ITEMS = [
     path: '/chords',
     label: 'Chords',
     icon: '<svg viewBox="0 0 24 24"><path d="M4 3h2v18H4zM9 3h2v18H9zM14 3h2v18h-2zM19 3h2v18h-2z" opacity=".4"/><circle cx="10" cy="9" r="2.6"/><circle cx="15" cy="14" r="2.6"/></svg>',
+  },
+  {
+    path: '/progress',
+    label: 'Progress',
+    icon: '<svg viewBox="0 0 24 24"><path d="M4 20V10h3v10H4zm6.5 0V4h3v16h-3zM17 20v-7h3v7h-3z"/></svg>',
   },
   {
     path: '/editor',
@@ -59,6 +65,7 @@ document.addEventListener('route-changed', updateNav);
 addRoute('/library', renderLibrary);
 addRoute('/player/:id', renderPlayer);
 addRoute('/chords', renderChordsPage);
+addRoute('/progress', renderProgressPage);
 addRoute('/editor', renderEditorHub);
 addRoute('/song-editor', renderSongEditor);
 addRoute('/song-editor/:id', renderSongEditor);

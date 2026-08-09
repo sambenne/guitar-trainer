@@ -1,4 +1,4 @@
-import type { Chord, Song, StrummingPattern, UserChord, UserPattern, UserSong } from '../types/models';
+import type { Chord, PracticeEntry, Song, StrummingPattern, UserChord, UserPattern, UserSong } from '../types/models';
 import { PRESET_CHORDS } from '../data/chords';
 import { PRESET_PATTERNS } from '../data/patterns';
 import { PRESET_SONGS } from '../data/songs';
@@ -139,4 +139,51 @@ export async function patternUsage(patternId: string): Promise<string[]> {
 
 export async function resetUserData(): Promise<void> {
   await db.clearAll();
+}
+
+// ---- Practice history ----
+
+/** Local calendar date as YYYY-MM-DD (not UTC — practice days follow the clock on the wall). */
+export function localDate(d = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+export interface PracticeDelta {
+  songId: string;
+  songTitle: string;
+  seconds: number;
+  maxBpm: number;
+  maxPct: number;
+  loops: number;
+}
+
+/** Merge a chunk of playing time into today's entry for the song. */
+export async function logPractice(delta: PracticeDelta): Promise<void> {
+  if (delta.seconds <= 0) return;
+  const date = localDate();
+  const id = `${date}:${delta.songId}`;
+  const existing = (await db.getOne('practice', id)) as PracticeEntry | undefined;
+  const entry: PracticeEntry = existing ?? {
+    id,
+    date,
+    songId: delta.songId,
+    songTitle: delta.songTitle,
+    seconds: 0,
+    maxBpm: 0,
+    maxPct: 0,
+    loops: 0,
+  };
+  entry.songTitle = delta.songTitle;
+  entry.seconds += delta.seconds;
+  entry.maxBpm = Math.max(entry.maxBpm, delta.maxBpm);
+  entry.maxPct = Math.max(entry.maxPct, delta.maxPct);
+  entry.loops += delta.loops;
+  await db.put('practice', entry);
+}
+
+/** All practice entries, newest date first. */
+export async function getPracticeEntries(): Promise<PracticeEntry[]> {
+  const entries = (await db.getAll('practice')) as PracticeEntry[];
+  return entries.sort((a, b) => b.date.localeCompare(a.date));
 }

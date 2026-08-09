@@ -7,7 +7,7 @@ import { createPlayer, type Player } from '../audio/scheduler';
 import { loadSampler, strumChord } from '../audio/sampler';
 import { createChordDiagram } from '../components/chord-diagram';
 import { createStrumDisplay } from '../components/strum-display';
-import { getChordMap, getPatternMap, getSong } from '../storage/repo';
+import { getChordMap, getPatternMap, getSong, logPractice } from '../storage/repo';
 import type { Chord, StrummingPattern } from '../types/models';
 
 const NEXT_CHORD_PULSE_BEATS = 2;
@@ -18,6 +18,7 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
   let player: Player | null = null;
   let wakeLock: WakeLockSentinel | null = null;
   let practiceCtx: AudioContext | null = null;
+  let endPracticeLog: (() => void) | null = null;
 
   async function practiceAudio(): Promise<{ ctx: AudioContext; buffers: Map<number, AudioBuffer> }> {
     if (!practiceCtx) practiceCtx = new AudioContext();
@@ -79,7 +80,36 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
 
     const settings = getSettings();
     const songBpm = song.bpm;
+    const songId = song.id;
+    const songTitle = song.title;
     player = createPlayer(timeline, songBpm, chords, patterns);
+
+    // ---- Practice history: accumulate real playing time, flush in chunks ----
+    let playSeconds = 0;
+    let sessionMaxBpm = 0;
+    let flushLoops = 0;
+    let lastPlayingMs: number | null = null;
+
+    function flushPractice(): void {
+      lastPlayingMs = null;
+      if (playSeconds < 1) return;
+      const delta = {
+        songId,
+        songTitle,
+        seconds: Math.round(playSeconds),
+        maxBpm: sessionMaxBpm,
+        maxPct: Math.round((sessionMaxBpm / songBpm) * 100),
+        loops: flushLoops,
+      };
+      playSeconds = 0;
+      flushLoops = 0;
+      void logPractice(delta);
+    }
+    const practiceFlushTimer = setInterval(flushPractice, 15000);
+    endPracticeLog = () => {
+      clearInterval(practiceFlushTimer);
+      flushPractice();
+    };
     player.setMetronome(settings.metronomeEnabled, settings.metronomeVolume);
     player.setGuitar(settings.strumEnabled, settings.strumVolume);
 
@@ -488,6 +518,17 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
         lastCountBeat = 0;
       }
 
+      // Practice history: count wall-clock time while actually playing
+      if (pos.state === 'playing') {
+        const nowMs = performance.now();
+        if (lastPlayingMs !== null) playSeconds += (nowMs - lastPlayingMs) / 1000;
+        lastPlayingMs = nowMs;
+        const b = player.getBpm();
+        if (b > sessionMaxBpm) sessionMaxBpm = b;
+      } else if (lastPlayingMs !== null) {
+        flushPractice();
+      }
+
       trackLoopPass(pos.stepFloat, pos.state === 'playing');
       if (pos.state === 'playing' && pos.stepFloat !== null) {
         showStep(pos.stepFloat);
@@ -594,6 +635,7 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
       lastStepFloat = stepFloat;
       if (!wrapped) return;
       loopPasses++;
+      flushLoops++;
       if (!autoSpeed || !player || loopPasses % AUTO_PASSES_PER_BUMP !== 0) return;
       const target = songBpm;
       const current = player.getBpm();
@@ -681,6 +723,7 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     cancelAnimationFrame(raf);
     document.removeEventListener('visibilitychange', onVisibility);
     releaseWakeLock();
+    endPracticeLog?.();
     void player?.dispose();
     void practiceCtx?.close();
   };

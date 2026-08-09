@@ -1,0 +1,76 @@
+.progress-page .streak-card {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.progress-page .streak-card .streak-num {
+  font-size: 34px;
+  font-weight: 750;
+  color: var(--accent);
+}
+
+.progress-page .streak-card .totals {
+  margin-left: auto;
+  text-align: right;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.progress-page .chart-card {
+  margin-bottom: 18px;
+}
+
+.progress-page .chart-card svg {
+  width: 100%;
+  display: block;
+}
+
+.progress-page .day-card {
+  margin-bottom: 12px;
+}
+
+.progress-page .day-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.progress-page .day-head .day-name {
+  font-weight: 650;
+}
+
+.progress-page .day-head .day-mins {
+  color: var(--accent);
+  font-weight: 650;
+  font-size: 14px;
+}
+
+.progress-page .song-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.progress-page .song-line .song-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress-page .song-line .song-stats {
+  flex-shrink: 0;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-page .empty {
+  text-align: center;
+  padding: 40px 20px;
+}

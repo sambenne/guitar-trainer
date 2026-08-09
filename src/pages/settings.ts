@@ -141,7 +141,7 @@ export function renderSettings(root: HTMLElement): void {
   });
 
   (root.querySelector('.reset-btn') as HTMLElement).addEventListener('click', async () => {
-    if (!confirm('Delete ALL your songs, chords and patterns? Presets are kept. This cannot be undone.')) return;
+    if (!confirm('Delete ALL your songs, chords, patterns and practice history? Presets are kept. This cannot be undone.')) return;
     await repo.resetUserData();
     status.textContent = 'All user data deleted.';
   });

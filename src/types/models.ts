@@ -75,6 +75,25 @@ export type UserSong = Song & UserRecordMeta;
 export type UserChord = Chord & UserRecordMeta;
 export type UserPattern = StrummingPattern & UserRecordMeta;
 
+/** One song's practice totals for one local day. */
+export interface PracticeEntry {
+  /** `${date}:${songId}` */
+  id: string;
+  /** Local date, YYYY-MM-DD. */
+  date: string;
+  songId: string;
+  /** Denormalized so history survives song deletion/rename. */
+  songTitle: string;
+  /** Accumulated actual playing time (not paused/browsing). */
+  seconds: number;
+  /** Fastest tempo played that day. */
+  maxBpm: number;
+  /** maxBpm as a percentage of the song's full tempo at the time. */
+  maxPct: number;
+  /** Completed loop passes. */
+  loops: number;
+}
+
 export interface Settings {
   metronomeEnabled: boolean;
   /** 0–1 */
