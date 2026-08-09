@@ -110,3 +110,36 @@
   margin-top: 14px;
   font-size: 13px;
 }
+
+/* Microphone listen mode */
+.listen-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  min-height: 44px;
+}
+
+.listen-btn {
+  flex-shrink: 0;
+}
+
+.listen-btn[aria-pressed='true'] {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+}
+
+.listen-status {
+  font-size: 14px;
+  min-width: 0;
+}
+
+.listen-status.match {
+  color: #58c470;
+  font-weight: 700;
+  font-size: 17px;
+}
+
+.compare-panel.heard-match {
+  border-color: #58c470;
+}

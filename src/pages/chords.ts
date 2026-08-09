@@ -1,5 +1,6 @@
 import './chords.css';
 import { createChordDiagram } from '../components/chord-diagram';
+import { createMicDetector, targetMatches, type DetectorFrame, type MicDetector } from '../audio/chord-detector';
 import { loadSampler, strumChord } from '../audio/sampler';
 import * as repo from '../storage/repo';
 import type { Chord } from '../types/models';
@@ -84,10 +85,68 @@ export function renderChordsPage(root: HTMLElement): () => void {
         <button data-mode="single" aria-pressed="true">Practice</button>
         <button data-mode="compare" aria-pressed="false">Compare</button>
       </div>
+      <div class="listen-row">
+        <button class="listen-btn" aria-pressed="false">🎤 Listen</button>
+        <span class="listen-status muted"></span>
+      </div>
       <div class="mode-body"></div>
       <p class="hint muted"></p>
     </div>
   `;
+
+  // ---- Microphone chord detection (processed on-device, never recorded) ----
+  const listenBtn = root.querySelector('.listen-btn') as HTMLButtonElement;
+  const listenStatus = root.querySelector('.listen-status') as HTMLElement;
+  let detector: MicDetector | null = null;
+
+  function currentTargets(): Chord[] {
+    if (lastMode === 'compare') return [chords[lastCompare[0]], chords[lastCompare[1]]].filter(Boolean);
+    return chords[lastSingleIdx] ? [chords[lastSingleIdx]] : [];
+  }
+
+  function onDetectorFrame(frame: DetectorFrame | null): void {
+    if (disposed) return;
+    root.querySelectorAll('.compare-panel.heard-match').forEach((p) => p.classList.remove('heard-match'));
+    if (!frame) {
+      listenStatus.textContent = 'Listening…';
+      listenStatus.classList.remove('match');
+      return;
+    }
+    const targets = currentTargets();
+    const hit = targets.find((t) => targetMatches(t.id, frame.best, frame.scores));
+    if (hit) {
+      listenStatus.textContent = `✓ ${hit.name}`;
+      listenStatus.classList.add('match');
+      if (lastMode === 'compare') {
+        const side = chords[lastCompare[0]]?.id === hit.id ? 0 : 1;
+        root.querySelector(`.compare-panel[data-side="${side}"]`)?.classList.add('heard-match');
+      }
+    } else {
+      listenStatus.textContent = frame.best ? `Heard: ${frame.best.name}` : 'Listening…';
+      listenStatus.classList.remove('match');
+    }
+  }
+
+  async function toggleListen(): Promise<void> {
+    if (detector) {
+      detector.stop();
+      detector = null;
+      listenBtn.setAttribute('aria-pressed', 'false');
+      listenStatus.textContent = '';
+      listenStatus.classList.remove('match');
+      return;
+    }
+    try {
+      listenStatus.textContent = 'Starting microphone…';
+      detector = await createMicDetector(chords, onDetectorFrame);
+      listenBtn.setAttribute('aria-pressed', 'true');
+      listenStatus.textContent = 'Listening…';
+    } catch (err) {
+      console.error(err);
+      listenStatus.textContent = 'Microphone unavailable — check permissions.';
+    }
+  }
+  listenBtn.addEventListener('click', () => void toggleListen());
 
   const body = root.querySelector('.mode-body') as HTMLElement;
   const hint = root.querySelector('.hint') as HTMLElement;
@@ -191,6 +250,7 @@ export function renderChordsPage(root: HTMLElement): () => void {
 
   return () => {
     disposed = true;
+    detector?.stop();
     clearInterval(tickTimer);
     clearInterval(flushTimer);
     root.removeEventListener('click', onTap, true);
