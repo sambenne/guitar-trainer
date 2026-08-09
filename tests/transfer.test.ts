@@ -100,6 +100,23 @@ describe('parseBackup', () => {
     expect(() => parseBackup(JSON.stringify(bad))).toThrow(/bpm/);
   });
 
+  it('accepts a valid bar split and rejects out-of-bar split beats', () => {
+    const withSplit = (atBeat: number): Song => ({
+      ...song,
+      sections: [
+        {
+          id: 's1',
+          name: 'V',
+          repeat: 1,
+          bars: [{ chordId: 'my-chord', patternId: 'my-pattern', split: { atBeat, chordId: 'my-chord' } }],
+        },
+      ],
+    });
+    expect(() => parseBackup(JSON.stringify(backup({ songs: [withSplit(3)] })))).not.toThrow();
+    expect(() => parseBackup(JSON.stringify(backup({ songs: [withSplit(1)] })))).toThrow(/split/);
+    expect(() => parseBackup(JSON.stringify(backup({ songs: [withSplit(5)] })))).toThrow(/split/);
+  });
+
   it('treats missing collections as empty', () => {
     const parsed = parseBackup(JSON.stringify({ version: 1 }));
     expect(parsed.songs).toEqual([]);
@@ -135,6 +152,26 @@ describe('prepareImport', () => {
   it('rejects songs referencing chords that resolve nowhere', () => {
     const b = backup({ chords: [] });
     expect(() => prepareImport(b, new Set())).toThrow(/missing chord "my-chord"/);
+  });
+
+  it('remaps split chord references on collision', () => {
+    const b = backup();
+    b.songs = [
+      {
+        ...song,
+        sections: [
+          {
+            id: 's1',
+            name: 'V',
+            repeat: 1,
+            bars: [{ chordId: 'my-chord', patternId: 'my-pattern', split: { atBeat: 3, chordId: 'my-chord' } }],
+          },
+        ],
+      },
+    ];
+    let n = 0;
+    const plan = prepareImport(b, new Set(['my-chord']), () => `new-${++n}`);
+    expect(plan.songs[0].sections[0].bars[0].split?.chordId).toBe('new-1');
   });
 });
 

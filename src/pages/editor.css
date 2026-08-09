@@ -248,9 +248,37 @@ button.danger {
 .bar-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 6px 0;
   border-bottom: 1px solid var(--border);
+}
+
+.bar-split-row {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+}
+
+.bar-split-row select {
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+}
+
+.bar-split-row .split-beat {
+  flex-shrink: 0;
+}
+
+.bar-split-row .split-beat .stepper-value {
+  min-width: 58px;
+  font-size: 13px;
+}
+
+.bar-row .bar-actions button[aria-pressed='true'] {
+  color: var(--accent);
 }
 
 .bar-row:last-of-type {

@@ -135,6 +135,25 @@ describe('compileTimeline', () => {
     expect(() => compileTimeline(song, new Map([...patterns, [incompatible.id, incompatible]]))).toThrow(/requires 8/);
   });
 
+  it('switches to the split chord mid-bar', () => {
+    const song = makeSong();
+    // 4/4 bar of Em with D6/9 from beat 3 → steps 0-3 em, steps 4-7 d69
+    song.sections[0].bars[0].split = { atBeat: 3, chordId: 'd69' };
+    const tl = compileTimeline(song, patterns);
+    expect(tl.steps.slice(0, 4).map((s) => s.chordId)).toEqual(['em', 'em', 'em', 'em']);
+    expect(tl.steps.slice(4, 8).map((s) => s.chordId)).toEqual(['d69', 'd69', 'd69', 'd69']);
+    // Bar boundaries and totals are unchanged
+    expect(tl.steps[8].chordId).toBe('d69');
+    expect(tl.totalBeats).toBe(20);
+  });
+
+  it('rejects a split outside the bar', () => {
+    const song = makeSong();
+    song.sections[0].bars[0].split = { atBeat: 5, chordId: 'd69' };
+    expect(() => compileTimeline(song, patterns)).toThrow(/invalid split beat/);
+    song.sections[0].bars[0].split = { atBeat: 1, chordId: 'd69' };
+    expect(() => compileTimeline(song, patterns)).toThrow(/invalid split beat/);
+  });
 });
 describe('nextChordChange', () => {
   it('finds the next step with a different chord', () => {

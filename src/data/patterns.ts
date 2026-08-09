@@ -109,6 +109,38 @@ export const PRESET_PATTERNS: StrummingPattern[] = [
     strings: [...ALL_STRINGS],
   },
   {
+    // Country/rock: three straight downs, then down-up on 4.
+    id: 'p-country',
+    name: 'Country (D D D DU)',
+    steps: [
+      { direction: 'D' },
+      { direction: '-' },
+      { direction: 'D' },
+      { direction: '-' },
+      { direction: 'D' },
+      { direction: '-' },
+      { direction: 'D' },
+      { direction: 'U' },
+    ],
+    strings: [...ALL_STRINGS],
+  },
+  {
+    // Swampy boogie: down-up on 1 and 3, single downs on 2 and 4.
+    id: 'p-boogie',
+    name: 'Boogie (DU D DU D)',
+    steps: [
+      { direction: 'D' },
+      { direction: 'U' },
+      { direction: 'D' },
+      { direction: '-' },
+      { direction: 'D' },
+      { direction: 'U' },
+      { direction: 'D' },
+      { direction: '-' },
+    ],
+    strings: [...ALL_STRINGS],
+  },
+  {
     // Driving folk strum: rest on 2, then continuous down-ups.
     id: 'p-folk',
     name: 'Folk (D - DU DU DU)',

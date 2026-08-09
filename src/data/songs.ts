@@ -561,6 +561,74 @@ export const PRESET_SONGS: Song[] = [
     ],
   },
   {
+    // The |A G| bars are true half-bar splits — A for beats 1-2, G for 3-4.
+    id: 'bad-moon-rising',
+    title: 'Bad Moon Rising',
+    artist: 'Creedence Clearwater Revival',
+    bpm: 92,
+    timeSignature: { beats: 4, noteValue: 4 },
+    sections: [
+      {
+        id: 'verse',
+        name: 'Verse',
+        repeat: 2,
+        bars: [
+          { chordId: 'd', patternId: 'p-country' },
+          { chordId: 'a', patternId: 'p-country', split: { atBeat: 3, chordId: 'g' } },
+          { chordId: 'd', patternId: 'p-country' },
+          { chordId: 'd', patternId: 'p-country' },
+        ],
+      },
+      {
+        id: 'chorus',
+        name: 'Chorus',
+        repeat: 1,
+        bars: [
+          { chordId: 'g', patternId: 'p-country' },
+          { chordId: 'g', patternId: 'p-country' },
+          { chordId: 'd', patternId: 'p-country' },
+          { chordId: 'd', patternId: 'p-country' },
+          { chordId: 'a', patternId: 'p-country', split: { atBeat: 3, chordId: 'g' } },
+          { chordId: 'd', patternId: 'p-country' },
+          { chordId: 'd', patternId: 'p-country' },
+          { chordId: 'd', patternId: 'p-country' },
+        ],
+      },
+    ],
+  },
+  {
+    // Fmaj7 stands in for the F barre, as the beginner charts suggest.
+    id: 'down-on-the-corner',
+    title: 'Down On The Corner',
+    artist: 'Creedence Clearwater Revival',
+    bpm: 110,
+    timeSignature: { beats: 4, noteValue: 4 },
+    sections: [
+      {
+        id: 'verse',
+        name: 'Verse',
+        repeat: 2,
+        bars: [
+          { chordId: 'c', patternId: 'p-boogie' },
+          { chordId: 'c', patternId: 'p-boogie' },
+          { chordId: 'g', patternId: 'p-boogie' },
+          { chordId: 'c', patternId: 'p-boogie' },
+        ],
+      },
+      {
+        id: 'chorus',
+        name: 'Chorus',
+        repeat: 2,
+        bars: [
+          { chordId: 'fmaj7', patternId: 'p-boogie' },
+          { chordId: 'c', patternId: 'p-boogie' },
+          { chordId: 'g', patternId: 'p-boogie' },
+          { chordId: 'c', patternId: 'p-boogie' },
+        ],
+      },
+    ],
+  },
+  {
     id: 'zombie',
     title: 'Zombie',
     artist: 'The Cranberries',

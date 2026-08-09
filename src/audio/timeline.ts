@@ -72,6 +72,14 @@ export function compileTimeline(song: Song, patterns: Map<string, StrummingPatte
               `${song.timeSignature.beats}/${song.timeSignature.noteValue} requires ${requiredSteps}`,
           );
         }
+        // Optional mid-bar chord change: split.chordId takes over from
+        // the step that lands on split.atBeat (1-based whole beat).
+        const split = bar.split;
+        if (split && (!Number.isInteger(split.atBeat) || split.atBeat < 2 || split.atBeat > beatsPerBar)) {
+          throw new Error(`Bar ${barIdx + 1} in song "${song.id}" has an invalid split beat ${split.atBeat}`);
+        }
+        const splitFromStep = split ? (split.atBeat - 1) * 2 : Infinity;
+
         pattern.steps.forEach((strum, stepIdx) => {
           steps.push({
             atBeat,
@@ -82,7 +90,7 @@ export function compileTimeline(song: Song, patterns: Map<string, StrummingPatte
             repeatIdx,
             barIdx,
             stepIdx,
-            chordId: bar.chordId,
+            chordId: stepIdx >= splitFromStep ? split!.chordId : bar.chordId,
             patternId: bar.patternId,
             direction: strum.direction,
           });

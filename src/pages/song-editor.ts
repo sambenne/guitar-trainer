@@ -131,6 +131,12 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
     });
     (root.querySelector('.beats-down') as HTMLElement).addEventListener('click', () => {
       draft.timeSignature.beats = Math.max(2, draft.timeSignature.beats - 1);
+      // Keep any split beats inside the shrunken bar
+      draft.sections.forEach((s) =>
+        s.bars.forEach((b) => {
+          if (b.split) b.split.atBeat = Math.min(b.split.atBeat, draft.timeSignature.beats);
+        }),
+      );
       syncSteppers();
       renderSections();
     });
@@ -241,6 +247,7 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
             <select class="bar-chord" aria-label="Chord"></select>
             <select class="bar-pattern" aria-label="Pattern"></select>
             <div class="bar-actions">
+              <button class="bar-split" aria-label="Split bar" aria-pressed="${!!bar.split}">½</button>
               <button class="bar-up" aria-label="Move up" ${bi === 0 ? 'disabled' : ''}>↑</button>
               <button class="bar-down" aria-label="Move down" ${bi === section.bars.length - 1 ? 'disabled' : ''}>↓</button>
               <button class="bar-dup" aria-label="Duplicate">⧉</button>
@@ -258,6 +265,43 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
           patternSelect.addEventListener('change', (e) => {
             bar.patternId = (e.target as HTMLSelectElement).value;
           });
+
+          // Mid-bar chord change: "½" toggles a second chord + start beat
+          (row.querySelector('.bar-split') as HTMLElement).addEventListener('click', () => {
+            if (bar.split) {
+              delete bar.split;
+            } else {
+              bar.split = { atBeat: Math.floor(draft.timeSignature.beats / 2) + 1, chordId: bar.chordId };
+            }
+            renderSections();
+          });
+          if (bar.split) {
+            const split = bar.split;
+            const splitRow = document.createElement('div');
+            splitRow.className = 'bar-split-row';
+            splitRow.innerHTML = `
+              <span class="bar-num">↳</span>
+              <select class="split-chord" aria-label="Second chord"></select>
+              <div class="stepper split-beat">
+                <button class="split-beat-down" aria-label="Earlier">−</button>
+                <span class="stepper-value">beat ${split.atBeat}</span>
+                <button class="split-beat-up" aria-label="Later">+</button>
+              </div>
+            `;
+            const splitSelect = splitRow.querySelector('.split-chord') as HTMLSelectElement;
+            populateChordOptions(splitSelect, split.chordId);
+            splitSelect.addEventListener('change', () => (split.chordId = splitSelect.value));
+            const beatValue = splitRow.querySelector('.stepper-value') as HTMLElement;
+            splitRow.querySelector('.split-beat-down')?.addEventListener('click', () => {
+              split.atBeat = Math.max(2, split.atBeat - 1);
+              beatValue.textContent = `beat ${split.atBeat}`;
+            });
+            splitRow.querySelector('.split-beat-up')?.addEventListener('click', () => {
+              split.atBeat = Math.min(draft.timeSignature.beats, split.atBeat + 1);
+              beatValue.textContent = `beat ${split.atBeat}`;
+            });
+            row.appendChild(splitRow);
+          }
           (row.querySelector('.bar-up') as HTMLElement).addEventListener('click', () => {
             [section.bars[bi - 1], section.bars[bi]] = [section.bars[bi], section.bars[bi - 1]];
             renderSections();
@@ -267,7 +311,7 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
             renderSections();
           });
           (row.querySelector('.bar-dup') as HTMLElement).addEventListener('click', () => {
-            section.bars.splice(bi + 1, 0, { ...bar });
+            section.bars.splice(bi + 1, 0, { ...bar, split: bar.split ? { ...bar.split } : undefined });
             renderSections();
           });
           (row.querySelector('.bar-del') as HTMLElement).addEventListener('click', () => {
@@ -278,7 +322,8 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
         });
 
         (card.querySelector('.add-bar') as HTMLElement).addEventListener('click', () => {
-          section.bars.push(section.bars.length > 0 ? { ...section.bars[section.bars.length - 1] } : defaultBar());
+          const last = section.bars[section.bars.length - 1];
+          section.bars.push(last ? { ...last, split: last.split ? { ...last.split } : undefined } : defaultBar());
           renderSections();
         });
 

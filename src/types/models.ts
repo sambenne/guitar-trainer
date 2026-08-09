@@ -39,6 +39,12 @@ export interface StrummingPattern {
 export interface SongBar {
   chordId: string;
   patternId: string;
+  /**
+   * Optional mid-bar chord change (e.g. the |A G| bars in Bad Moon Rising).
+   * The second chord takes over from `atBeat` (1-based whole beat, 2..beats)
+   * to the end of the bar. The strumming pattern is unaffected.
+   */
+  split?: { atBeat: number; chordId: string };
 }
 
 export interface SongSection {

@@ -38,6 +38,7 @@ export function buildSongExport(
   for (const section of song.sections) {
     for (const bar of section.bars) {
       if (!isPresetChord(bar.chordId)) chordIds.add(bar.chordId);
+      if (bar.split && !isPresetChord(bar.split.chordId)) chordIds.add(bar.split.chordId);
       if (!isPresetPattern(bar.patternId)) patternIds.add(bar.patternId);
     }
   }
@@ -117,6 +118,7 @@ function checkSong(s: unknown, i: number): asserts s is Song {
   if (!isObj(ts) || typeof ts.beats !== 'number' || ts.beats < 1 || typeof ts.noteValue !== 'number') {
     fail(`songs[${i}].timeSignature invalid`);
   }
+  const beatsPerBar = ts.beats as number;
   if (!Array.isArray(s.sections)) fail(`songs[${i}].sections missing`);
   s.sections.forEach((sec: unknown, j: number) => {
     if (!isObj(sec) || typeof sec.name !== 'string') fail(`songs[${i}].sections[${j}] invalid`);
@@ -125,6 +127,20 @@ function checkSong(s: unknown, i: number): asserts s is Song {
     sec.bars.forEach((b: unknown, k: number) => {
       if (!isObj(b) || typeof b.chordId !== 'string' || typeof b.patternId !== 'string') {
         fail(`songs[${i}].sections[${j}].bars[${k}] invalid`);
+      }
+      if (b.split !== undefined) {
+        const sp = b.split;
+        if (
+          !isObj(sp) ||
+          typeof sp.chordId !== 'string' ||
+          !sp.chordId ||
+          typeof sp.atBeat !== 'number' ||
+          !Number.isInteger(sp.atBeat) ||
+          sp.atBeat < 2 ||
+          sp.atBeat > beatsPerBar
+        ) {
+          fail(`songs[${i}].sections[${j}].bars[${k}].split invalid`);
+        }
       }
     });
   });
@@ -191,7 +207,12 @@ export function prepareImport(
         if (!knownPatternIds.has(patternId) && !existingIds.has(patternId)) {
           fail(`Song "${song.title}" references missing pattern "${bar.patternId}"`);
         }
-        return { chordId, patternId };
+        if (!bar.split) return { chordId, patternId };
+        const splitChordId = remapped[bar.split.chordId] ?? bar.split.chordId;
+        if (!knownChordIds.has(splitChordId) && !existingIds.has(splitChordId)) {
+          fail(`Song "${song.title}" references missing chord "${bar.split.chordId}"`);
+        }
+        return { chordId, patternId, split: { atBeat: bar.split.atBeat, chordId: splitChordId } };
       }),
     }));
     return { ...song, id, sections };
