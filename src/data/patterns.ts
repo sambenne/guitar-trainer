@@ -109,6 +109,22 @@ export const PRESET_PATTERNS: StrummingPattern[] = [
     strings: [...ALL_STRINGS],
   },
   {
+    // Driving folk strum: rest on 2, then continuous down-ups.
+    id: 'p-folk',
+    name: 'Folk (D - DU DU DU)',
+    steps: [
+      { direction: 'D' },
+      { direction: '-' },
+      { direction: 'D' },
+      { direction: 'U' },
+      { direction: 'D' },
+      { direction: 'U' },
+      { direction: 'D' },
+      { direction: 'U' },
+    ],
+    strings: [...ALL_STRINGS],
+  },
+  {
     // 6/8 time — a down on each of the six counts, swaying feel.
     id: 'p-68-downs',
     name: '6/8 Downs',

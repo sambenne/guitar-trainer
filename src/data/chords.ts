@@ -187,4 +187,18 @@ export const PRESET_CHORDS: Chord[] = [
       { state: 'open' },
     ],
   },
+  {
+    // Beginner-friendly stand-in for the F barre chord.
+    id: 'fmaj7',
+    name: 'Fmaj7',
+    startFret: 1,
+    strings: [
+      { state: 'muted' },
+      { state: 'fretted', fret: 3, finger: 3 },
+      { state: 'fretted', fret: 3, finger: 4 },
+      { state: 'fretted', fret: 2, finger: 2 },
+      { state: 'fretted', fret: 1, finger: 1 },
+      { state: 'open' },
+    ],
+  },
 ];
