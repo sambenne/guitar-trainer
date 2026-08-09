@@ -128,6 +128,9 @@ function checkSong(s: unknown, i: number): asserts s is Song {
       if (!isObj(b) || typeof b.chordId !== 'string' || typeof b.patternId !== 'string') {
         fail(`songs[${i}].sections[${j}].bars[${k}] invalid`);
       }
+      if (b.lyric !== undefined && (typeof b.lyric !== 'string' || b.lyric.length > 300)) {
+        fail(`songs[${i}].sections[${j}].bars[${k}].lyric invalid`);
+      }
       if (b.split !== undefined) {
         const sp = b.split;
         if (
@@ -207,12 +210,13 @@ export function prepareImport(
         if (!knownPatternIds.has(patternId) && !existingIds.has(patternId)) {
           fail(`Song "${song.title}" references missing pattern "${bar.patternId}"`);
         }
-        if (!bar.split) return { chordId, patternId };
+        const base = bar.lyric ? { chordId, patternId, lyric: bar.lyric } : { chordId, patternId };
+        if (!bar.split) return base;
         const splitChordId = remapped[bar.split.chordId] ?? bar.split.chordId;
         if (!knownChordIds.has(splitChordId) && !existingIds.has(splitChordId)) {
           fail(`Song "${song.title}" references missing chord "${bar.split.chordId}"`);
         }
-        return { chordId, patternId, split: { atBeat: bar.split.atBeat, chordId: splitChordId } };
+        return { ...base, split: { atBeat: bar.split.atBeat, chordId: splitChordId } };
       }),
     }));
     return { ...song, id, sections };

@@ -161,6 +161,11 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
           </div>
         </div>
 
+        <div class="lyric-strip" hidden>
+          <div class="lyric-now"></div>
+          <div class="lyric-next"></div>
+        </div>
+
         <div class="next-chord"><span class="muted">Next:</span> <strong>–</strong> <span class="beats-left muted"></span></div>
 
         <div class="practice-speed">
@@ -257,9 +262,30 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     let shownPatternId: string | null = null;
     const lowTop = settings.stringOrientation === 'lowTop';
 
+    // ---- Lyrics (user songs): current bar's line + the next, synced per bar ----
+    const stepsPerBar0 = timeline.beatsPerBar * 2;
+    const barLyrics: (string | undefined)[] = [];
+    for (let i = 0; i < timeline.steps.length; i += stepsPerBar0) {
+      const step = timeline.steps[i];
+      barLyrics.push(song.sections[step.sectionIdx]?.bars[step.barIdx]?.lyric);
+    }
+    const hasLyrics = barLyrics.some(Boolean);
+    const lyricStrip = $('.lyric-strip');
+    const lyricNow = $('.lyric-now');
+    const lyricNext = $('.lyric-next');
+    lyricStrip.hidden = !hasLyrics;
+    let shownLyricBar = -1;
+
+    function showLyricForBar(barIdx: number): void {
+      if (!hasLyrics || barIdx === shownLyricBar) return;
+      shownLyricBar = barIdx;
+      lyricNow.textContent = barLyrics[barIdx] ?? '…';
+      lyricNext.textContent = barLyrics[barIdx + 1] ?? '';
+    }
+
     // Playback view of a bar with a mid-bar chord change: both chords stay
     // side by side; emphasis cross-fades over the beat before the switch.
-    const stepsPerBar = timeline.beatsPerBar * 2;
+    const stepsPerBar = stepsPerBar0;
     const FADED = 0.3;
     let shownViewKey: string | null = null;
 
@@ -277,6 +303,8 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     function showStep(stepFloat: number): void {
       const idx = Math.min(Math.floor(stepFloat), timeline.steps.length - 1);
       const step = timeline.steps[idx];
+
+      showLyricForBar(Math.floor(idx / stepsPerBar));
 
       const split = barSplitInfo(idx);
       if (split) {

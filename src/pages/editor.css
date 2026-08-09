@@ -281,6 +281,22 @@ button.danger {
   color: var(--accent);
 }
 
+.section-head .lyrics-toggle[aria-pressed='true'] {
+  color: var(--accent);
+}
+
+.bar-lyric-row {
+  flex-basis: 100%;
+  padding: 2px 0 2px 26px;
+}
+
+.bar-lyric-row .bar-lyric {
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-style: italic;
+}
+
 .bar-row:last-of-type {
   border-bottom: none;
 }

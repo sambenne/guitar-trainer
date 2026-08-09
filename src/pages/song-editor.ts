@@ -10,6 +10,9 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
   const [id, query] = (ctx.params.id ?? '').split('?');
   const duplicate = query?.includes('duplicate=1') ?? false;
 
+  // Sections whose per-bar lyric inputs are visible (seeded from existing lyrics).
+  const lyricsShown = new Set<string>();
+
   let draft: Song = {
     id: crypto.randomUUID(),
     title: '',
@@ -42,6 +45,9 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
         }
       }
     }
+    draft.sections.forEach((s) => {
+      if (s.bars.some((b) => b.lyric)) lyricsShown.add(s.id);
+    });
     if (!disposed) build();
   })();
 
@@ -210,11 +216,20 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
               <span class="stepper-value">×${section.repeat}</span>
               <button class="rep-up">+</button>
             </div>
+            <button class="ghost lyrics-toggle" aria-label="Show lyrics" aria-pressed="false">♪</button>
             <button class="ghost danger del-section" aria-label="Delete section">✕</button>
           </div>
           <div class="bars"></div>
           <div class="add-row"><button class="add-bar" style="flex:1">+ Add Bar</button></div>
         `;
+
+        const lyricsBtn = card.querySelector('.lyrics-toggle') as HTMLButtonElement;
+        lyricsBtn.setAttribute('aria-pressed', String(lyricsShown.has(section.id)));
+        lyricsBtn.addEventListener('click', () => {
+          if (lyricsShown.has(section.id)) lyricsShown.delete(section.id);
+          else lyricsShown.add(section.id);
+          renderSections();
+        });
 
         const nameInput = card.querySelector('.section-name') as HTMLInputElement;
         nameInput.value = section.name;
@@ -265,6 +280,23 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
           patternSelect.addEventListener('change', (e) => {
             bar.patternId = (e.target as HTMLSelectElement).value;
           });
+
+          if (lyricsShown.has(section.id)) {
+            const lyricRow = document.createElement('div');
+            lyricRow.className = 'bar-lyric-row';
+            const lyricInput = document.createElement('input');
+            lyricInput.className = 'bar-lyric';
+            lyricInput.placeholder = '♪ words sung over this bar';
+            lyricInput.maxLength = 300;
+            lyricInput.value = bar.lyric ?? '';
+            lyricInput.addEventListener('input', () => {
+              const v = lyricInput.value.trim();
+              if (v) bar.lyric = lyricInput.value;
+              else delete bar.lyric;
+            });
+            lyricRow.appendChild(lyricInput);
+            row.appendChild(lyricRow);
+          }
 
           // Mid-bar chord change: "½" toggles a second chord + start beat
           (row.querySelector('.bar-split') as HTMLElement).addEventListener('click', () => {
@@ -349,7 +381,14 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
       }
       draft.title = draft.title.trim();
       draft.artist = draft.artist?.trim() || undefined;
-      draft.sections.forEach((s) => (s.name = s.name.trim() || 'Section'));
+      draft.sections.forEach((s) => {
+        s.name = s.name.trim() || 'Section';
+        s.bars.forEach((b) => {
+          const t = b.lyric?.trim();
+          if (t) b.lyric = t;
+          else delete b.lyric;
+        });
+      });
       const requiredSteps = draft.timeSignature.beats * 2;
       const patternMap = new Map(patterns.map((pattern) => [pattern.id, pattern]));
       const hasIncompatiblePattern = draft.sections.some((section) =>

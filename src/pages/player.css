@@ -382,6 +382,36 @@
   transition: color 0.2s;
 }
 
+/* Lyric strip (user songs with lyrics) */
+.lyric-strip {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 14px;
+  text-align: center;
+  min-height: 52px;
+}
+
+.lyric-strip[hidden] {
+  display: none;
+}
+
+.lyric-strip .lyric-now {
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lyric-strip .lyric-next {
+  font-size: 13px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Custom bar-range loop row */
 .bar-range {
   display: flex;

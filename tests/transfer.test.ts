@@ -154,6 +154,26 @@ describe('prepareImport', () => {
     expect(() => prepareImport(b, new Set())).toThrow(/missing chord "my-chord"/);
   });
 
+  it('preserves bar lyrics through import and rejects overlong ones', () => {
+    const withLyric: Song = {
+      ...song,
+      sections: [
+        {
+          id: 's1',
+          name: 'V',
+          repeat: 1,
+          bars: [{ chordId: 'my-chord', patternId: 'my-pattern', lyric: 'here comes the sun' }],
+        },
+      ],
+    };
+    const plan = prepareImport(backup({ songs: [withLyric] }), new Set());
+    expect(plan.songs[0].sections[0].bars[0].lyric).toBe('here comes the sun');
+
+    const tooLong = structuredClone(withLyric);
+    tooLong.sections[0].bars[0].lyric = 'x'.repeat(301);
+    expect(() => parseBackup(JSON.stringify(backup({ songs: [tooLong] })))).toThrow(/lyric/);
+  });
+
   it('remaps split chord references on collision', () => {
     const b = backup();
     b.songs = [

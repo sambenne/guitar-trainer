@@ -45,6 +45,8 @@ export interface SongBar {
    * to the end of the bar. The strumming pattern is unaffected.
    */
   split?: { atBeat: number; chordId: string };
+  /** Words sung over this bar. User songs only — presets ship without lyrics. */
+  lyric?: string;
 }
 
 export interface SongSection {
