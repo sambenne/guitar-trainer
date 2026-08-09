@@ -382,6 +382,31 @@
   transition: color 0.2s;
 }
 
+/* Custom bar-range loop row */
+.bar-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.bar-range[hidden] {
+  display: none;
+}
+
+.bar-range .stepper {
+  flex: 1;
+}
+
+.bar-range .stepper-value {
+  min-width: 34px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar-range .range-total {
+  flex-shrink: 0;
+}
+
 .count-in-overlay {
   position: fixed;
   inset: 0;

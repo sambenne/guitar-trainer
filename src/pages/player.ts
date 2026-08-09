@@ -138,6 +138,22 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
           <button class="auto-speed" aria-pressed="false" title="Speed up 5% after every 3 loops">Auto ▲</button>
         </div>
 
+        <div class="bar-range" hidden>
+          <span class="muted">Bars</span>
+          <div class="stepper">
+            <button class="range-from-down" aria-label="Range start earlier">−</button>
+            <span class="stepper-value range-from"></span>
+            <button class="range-from-up" aria-label="Range start later">+</button>
+          </div>
+          <span class="muted">to</span>
+          <div class="stepper">
+            <button class="range-to-down" aria-label="Range end earlier">−</button>
+            <span class="stepper-value range-to"></span>
+            <button class="range-to-up" aria-label="Range end later">+</button>
+          </div>
+          <span class="range-total muted"></span>
+        </div>
+
         <div class="transport">
           <div class="capo-control" title="Capo fret">
             <button class="capo-down" aria-label="Capo down">−</button>
@@ -181,6 +197,7 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     loopSelect.replaceChildren();
     loopSelect.add(new Option('Loop: Full song', 'full'));
     timeline.sections.forEach((section, i) => loopSelect.add(new Option(`Loop: ${section.name}`, `sec-${i}`)));
+    loopSelect.add(new Option('Loop: Custom bars', 'bars'));
     loopSelect.add(new Option('Play once', 'none'));
 
     bpmValue.textContent = String(player.getBpm());
@@ -571,7 +588,9 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
         lastStepFloat = null;
         return;
       }
-      const wrapped = lastStepFloat !== null && stepFloat < lastStepFloat - stepsPerBar;
+      // Position only moves backwards on a loop wrap, so any jump back of
+      // more than one step counts — a full-bar threshold would miss 1-bar loops.
+      const wrapped = lastStepFloat !== null && stepFloat < lastStepFloat - 1;
       lastStepFloat = stepFloat;
       if (!wrapped) return;
       loopPasses++;
@@ -605,12 +624,52 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
       player?.setGuitar(enabled, getSettings().strumVolume);
     });
 
+    // ---- Bar-range loop (Loop: Custom bars) ----
+    const totalBars = timeline.steps.length / stepsPerBar;
+    const barRangeEl = $('.bar-range');
+    const rangeFromEl = $('.range-from');
+    const rangeToEl = $('.range-to');
+    $('.range-total').textContent = `of ${totalBars}`;
+    let rangeFrom = 1;
+    let rangeTo = Math.min(2, totalBars);
+
+    function applyBarRange(): void {
+      rangeFromEl.textContent = String(rangeFrom);
+      rangeToEl.textContent = String(rangeTo);
+      player?.setLoop({ start: (rangeFrom - 1) * stepsPerBar, end: rangeTo * stepsPerBar });
+      loopPasses = 0;
+    }
+    $('.range-from-down').addEventListener('click', () => {
+      rangeFrom = Math.max(1, rangeFrom - 1);
+      applyBarRange();
+    });
+    $('.range-from-up').addEventListener('click', () => {
+      rangeFrom = Math.min(rangeTo, rangeFrom + 1);
+      applyBarRange();
+    });
+    $('.range-to-down').addEventListener('click', () => {
+      rangeTo = Math.max(rangeFrom, rangeTo - 1);
+      applyBarRange();
+    });
+    $('.range-to-up').addEventListener('click', () => {
+      rangeTo = Math.min(totalBars, rangeTo + 1);
+      applyBarRange();
+    });
+
     loopSelect.addEventListener('change', () => {
       if (!player) return;
       const v = loopSelect.value;
+      barRangeEl.hidden = v !== 'bars';
       if (v === 'full') player.setLoop({ start: 0, end: timeline.steps.length });
       else if (v === 'none') player.setLoop(null);
-      else {
+      else if (v === 'bars') {
+        // Start the range on whatever bar is on screen right now
+        const pos = player.getPosition();
+        const currentBar = pos.stepFloat !== null ? Math.floor(pos.stepFloat / stepsPerBar) + 1 : 1;
+        rangeFrom = Math.min(currentBar, totalBars);
+        rangeTo = Math.min(rangeFrom + 1, totalBars);
+        applyBarRange();
+      } else {
         const sec = timeline.sections[Number(v.slice(4))];
         if (sec) player.setLoop({ start: sec.stepStart, end: sec.stepEnd });
       }
