@@ -332,6 +332,56 @@
   opacity: 0.45;
 }
 
+/* Practice speed row */
+.practice-speed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.practice-speed .speed-chips {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+}
+
+.speed-chip {
+  flex: 1;
+  min-height: 36px;
+  min-width: 0;
+  padding: 4px 2px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--text-dim);
+}
+
+.speed-chip[aria-pressed='true'] {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+  background: var(--panel-2);
+}
+
+.auto-speed {
+  min-height: 36px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 650;
+  flex-shrink: 0;
+}
+
+.auto-speed[aria-pressed='true'] {
+  color: var(--accent);
+  border-color: var(--accent-dim);
+}
+
+.bpm-value.bumped strong {
+  color: var(--accent);
+  transition: color 0.2s;
+}
+
 .count-in-overlay {
   position: fixed;
   inset: 0;

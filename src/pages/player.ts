@@ -78,7 +78,8 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     }
 
     const settings = getSettings();
-    player = createPlayer(timeline, song.bpm, chords, patterns);
+    const songBpm = song.bpm;
+    player = createPlayer(timeline, songBpm, chords, patterns);
     player.setMetronome(settings.metronomeEnabled, settings.metronomeVolume);
     player.setGuitar(settings.strumEnabled, settings.strumVolume);
 
@@ -131,6 +132,11 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
         </div>
 
         <div class="next-chord"><span class="muted">Next:</span> <strong>–</strong> <span class="beats-left muted"></span></div>
+
+        <div class="practice-speed">
+          <div class="speed-chips"></div>
+          <button class="auto-speed" aria-pressed="false" title="Speed up 5% after every 3 loops">Auto ▲</button>
+        </div>
 
         <div class="transport">
           <div class="capo-control" title="Capo fret">
@@ -465,6 +471,7 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
         lastCountBeat = 0;
       }
 
+      trackLoopPass(pos.stepFloat, pos.state === 'playing');
       if (pos.state === 'playing' && pos.stepFloat !== null) {
         showStep(pos.stepFloat);
       } else if (pos.state === 'ended') {
@@ -512,9 +519,77 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
       if (!player) return;
       player.setBpm(player.getBpm() + delta);
       bpmValue.textContent = String(player.getBpm());
+      syncSpeedChips();
     }
     $('.bpm-down').addEventListener('click', () => changeBpm(-5));
     $('.bpm-up').addEventListener('click', () => changeBpm(5));
+
+    // ---- Practice speed: percentage chips + auto speed-up over loops ----
+    const SPEED_STEPS = [50, 60, 70, 80, 90, 100];
+    const AUTO_PASSES_PER_BUMP = 3;
+    const AUTO_BUMP_FRACTION = 0.05;
+
+    const chipsHolder = $('.speed-chips');
+    SPEED_STEPS.forEach((pct) => {
+      const chip = document.createElement('button');
+      chip.className = 'speed-chip';
+      chip.dataset.pct = String(pct);
+      chip.textContent = `${pct}%`;
+      chip.addEventListener('click', () => {
+        if (!player) return;
+        player.setBpm(Math.round((songBpm * pct) / 100));
+        bpmValue.textContent = String(player.getBpm());
+        syncSpeedChips();
+      });
+      chipsHolder.appendChild(chip);
+    });
+    const speedChips = [...chipsHolder.querySelectorAll<HTMLButtonElement>('.speed-chip')];
+
+    function syncSpeedChips(): void {
+      const current = player?.getBpm() ?? songBpm;
+      speedChips.forEach((chip) => {
+        const pct = Number(chip.dataset.pct);
+        chip.setAttribute('aria-pressed', String(current === Math.round((songBpm * pct) / 100)));
+      });
+    }
+    syncSpeedChips();
+
+    const autoBtn = $<HTMLButtonElement>('.auto-speed');
+    let autoSpeed = false;
+    let loopPasses = 0;
+    let lastStepFloat: number | null = null;
+
+    autoBtn.addEventListener('click', () => {
+      autoSpeed = !autoSpeed;
+      autoBtn.setAttribute('aria-pressed', String(autoSpeed));
+      loopPasses = 0;
+    });
+
+    /** Called from the rAF loop; detects loop wraps and applies the auto bump. */
+    function trackLoopPass(stepFloat: number | null, playing: boolean): void {
+      if (!playing || stepFloat === null) {
+        lastStepFloat = null;
+        return;
+      }
+      const wrapped = lastStepFloat !== null && stepFloat < lastStepFloat - stepsPerBar;
+      lastStepFloat = stepFloat;
+      if (!wrapped) return;
+      loopPasses++;
+      if (!autoSpeed || !player || loopPasses % AUTO_PASSES_PER_BUMP !== 0) return;
+      const target = songBpm;
+      const current = player.getBpm();
+      if (current >= target) return;
+      player.setBpm(Math.min(target, current + Math.max(1, Math.round(target * AUTO_BUMP_FRACTION))));
+      bpmValue.textContent = String(player.getBpm());
+      syncSpeedChips();
+      const holder = $('.bpm-value');
+      holder.classList.add('bumped');
+      setTimeout(() => holder.classList.remove('bumped'), 1200);
+    }
+
+    loopSelect.addEventListener('change', () => {
+      loopPasses = 0;
+    });
 
     metroBtn.addEventListener('click', () => {
       const enabled = metroBtn.getAttribute('aria-pressed') !== 'true';
