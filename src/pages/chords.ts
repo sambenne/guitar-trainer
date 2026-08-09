@@ -6,6 +6,9 @@ import type { Chord } from '../types/models';
 
 type Mode = 'single' | 'compare';
 
+/** Time counts while the page is visible and within this window of a tap. */
+const ACTIVE_WINDOW_MS = 3 * 60 * 1000;
+
 let lastMode: Mode = 'single';
 let lastSingleIdx = 0;
 let lastCompare: [number, number] = [0, 1];
@@ -15,6 +18,37 @@ export function renderChordsPage(root: HTMLElement): () => void {
   let chords: Chord[] = [];
   let ctx: AudioContext | null = null;
   let master: GainNode | null = null;
+
+  // ---- Practice history: count drilling time (visible + recently tapped) ----
+  let lastTapMs = 0; // 0 = clock not started; first tap arms it
+  let practiceSeconds = 0;
+
+  const onTap = (): void => {
+    lastTapMs = Date.now();
+  };
+  root.addEventListener('click', onTap, true);
+  root.addEventListener('change', onTap, true);
+
+  const tickTimer = setInterval(() => {
+    if (lastTapMs && document.visibilityState === 'visible' && Date.now() - lastTapMs < ACTIVE_WINDOW_MS) {
+      practiceSeconds++;
+    }
+  }, 1000);
+
+  function flushPractice(): void {
+    if (practiceSeconds < 5) return; // ignore stray taps
+    const seconds = practiceSeconds;
+    practiceSeconds = 0;
+    void repo.logPractice({
+      songId: 'chord-practice',
+      songTitle: 'Chord practice',
+      seconds,
+      maxBpm: 0,
+      maxPct: 0,
+      loops: 0,
+    });
+  }
+  const flushTimer = setInterval(flushPractice, 30000);
 
   async function audio(): Promise<{ ctx: AudioContext; master: GainNode; buffers: Map<number, AudioBuffer> }> {
     if (!ctx) {
@@ -157,6 +191,11 @@ export function renderChordsPage(root: HTMLElement): () => void {
 
   return () => {
     disposed = true;
+    clearInterval(tickTimer);
+    clearInterval(flushTimer);
+    root.removeEventListener('click', onTap, true);
+    root.removeEventListener('change', onTap, true);
+    flushPractice();
     void ctx?.close();
   };
 }
