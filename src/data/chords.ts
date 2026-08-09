@@ -188,6 +188,19 @@ export const PRESET_CHORDS: Chord[] = [
     ],
   },
   {
+    id: 'd7',
+    name: 'D7',
+    startFret: 1,
+    strings: [
+      { state: 'muted' },
+      { state: 'muted' },
+      { state: 'open' },
+      { state: 'fretted', fret: 2, finger: 2 },
+      { state: 'fretted', fret: 1, finger: 1 },
+      { state: 'fretted', fret: 2, finger: 3 },
+    ],
+  },
+  {
     // Beginner-friendly stand-in for the F barre chord.
     id: 'fmaj7',
     name: 'Fmaj7',

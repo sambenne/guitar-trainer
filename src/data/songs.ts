@@ -629,6 +629,46 @@ export const PRESET_SONGS: Song[] = [
     ],
   },
   {
+    // The record's short 2/4 measures fold into split bars: the C and D7
+    // stabs each take two beats before G returns.
+    id: 'ring-of-fire',
+    title: 'Ring of Fire',
+    artist: 'Johnny Cash',
+    bpm: 105,
+    timeSignature: { beats: 4, noteValue: 4 },
+    sections: [
+      {
+        id: 'verse',
+        name: 'Verse',
+        repeat: 2,
+        bars: [
+          { chordId: 'g', patternId: 'p-country' },
+          { chordId: 'c', patternId: 'p-country', split: { atBeat: 3, chordId: 'g' } },
+          { chordId: 'g', patternId: 'p-country' },
+          { chordId: 'g', patternId: 'p-country' },
+          { chordId: 'g', patternId: 'p-country', split: { atBeat: 3, chordId: 'd7' } },
+          { chordId: 'g', patternId: 'p-country' },
+          { chordId: 'g', patternId: 'p-country' },
+        ],
+      },
+      {
+        id: 'chorus',
+        name: 'Chorus',
+        repeat: 1,
+        bars: [
+          { chordId: 'd7', patternId: 'p-country' },
+          { chordId: 'c', patternId: 'p-country' },
+          { chordId: 'g', patternId: 'p-country' },
+          { chordId: 'g', patternId: 'p-country' },
+          { chordId: 'd7', patternId: 'p-country' },
+          { chordId: 'c', patternId: 'p-country' },
+          { chordId: 'g', patternId: 'p-country' },
+          { chordId: 'g', patternId: 'p-country' },
+        ],
+      },
+    ],
+  },
+  {
     id: 'zombie',
     title: 'Zombie',
     artist: 'The Cranberries',

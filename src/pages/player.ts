@@ -164,9 +164,10 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     const strumDisplay = createStrumDisplay();
     $('.strum-panel').appendChild(strumDisplay.svg);
 
-    // Split-view diagrams (practice: see a chord change side by side)
+    // Split-view diagrams (practice compare AND split-bar playback)
     const splitDiagrams = [createChordDiagram(), createChordDiagram()];
-    root.querySelectorAll<HTMLElement>('.split-half').forEach((half, i) => half.appendChild(splitDiagrams[i].svg));
+    const splitHalves = [...root.querySelectorAll<HTMLElement>('.split-half')];
+    splitHalves.forEach((half, i) => half.appendChild(splitDiagrams[i].svg));
 
     // Loop selector: full song (default), each section, or play through once
     loopSelect.replaceChildren();
@@ -198,11 +199,54 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     let shownPatternId: string | null = null;
     const lowTop = settings.stringOrientation === 'lowTop';
 
+    // Playback view of a bar with a mid-bar chord change: both chords stay
+    // side by side; emphasis cross-fades over the beat before the switch.
+    const stepsPerBar = timeline.beatsPerBar * 2;
+    const FADED = 0.3;
+    let shownViewKey: string | null = null;
+
+    function barSplitInfo(idx: number): { barStart: number; splitLocal: number; chordA: string; chordB: string } | null {
+      const step = timeline.steps[idx];
+      const barStart = idx - step.stepIdx;
+      const first = timeline.steps[barStart].chordId;
+      for (let i = barStart + 1; i < barStart + stepsPerBar && i < timeline.steps.length; i++) {
+        const s = timeline.steps[i];
+        if (s.chordId !== first) return { barStart, splitLocal: s.stepIdx, chordA: first, chordB: s.chordId };
+      }
+      return null;
+    }
+
     function showStep(stepFloat: number): void {
       const idx = Math.min(Math.floor(stepFloat), timeline.steps.length - 1);
       const step = timeline.steps[idx];
 
-      if (step.chordId !== shownChordId) {
+      const split = barSplitInfo(idx);
+      if (split) {
+        const key = `split:${split.chordA}:${split.chordB}:${split.splitLocal}`;
+        if (shownViewKey !== key) {
+          singleView.style.display = 'none';
+          splitView.hidden = false;
+          [split.chordA, split.chordB].forEach((id, i) => {
+            const chord = chords.get(id);
+            splitNames[i].textContent = chord?.name ?? '?';
+            if (chord) splitDiagrams[i].render(chord);
+          });
+          shownViewKey = key;
+          shownChordId = null;
+        }
+        const beatsUntil = (split.splitLocal - (stepFloat - split.barStart)) / 2;
+        const blend = beatsUntil >= 1 ? 1 : beatsUntil <= 0 ? 0 : beatsUntil; // 1 → chord A, 0 → chord B
+        splitHalves[0].style.opacity = String(FADED + (1 - FADED) * blend);
+        splitHalves[1].style.opacity = String(1 - (1 - FADED) * blend);
+      } else if (shownViewKey !== 'single') {
+        splitView.hidden = true;
+        singleView.style.display = '';
+        splitHalves.forEach((h) => (h.style.opacity = ''));
+        shownViewKey = 'single';
+        shownChordId = null;
+      }
+
+      if (!split && step.chordId !== shownChordId) {
         const chord: Chord | undefined = chords.get(step.chordId);
         chordName.textContent = chord?.name ?? '?';
         if (chord) chordDiagram.render(chord);
@@ -262,6 +306,9 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     }
 
     function renderPractice(): void {
+      splitHalves.forEach((h) => (h.style.opacity = ''));
+      shownViewKey = null; // force the live view to rebuild on next play
+      shownChordId = null;
       if (splitMode && songTransitions.length > 0) {
         singleView.style.display = 'none';
         splitView.hidden = false;
@@ -277,7 +324,6 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
         const chord = chords.get(songChordIds[practiceIdx]);
         chordName.textContent = chord?.name ?? '?';
         if (chord) chordDiagram.render(chord);
-        shownChordId = null; // force live view to re-render on next play
       }
     }
 
