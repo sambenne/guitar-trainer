@@ -2,6 +2,7 @@ import './editor.css';
 import type { RouteContext } from '../app/router';
 import { navigate } from '../app/router';
 import { getSettings } from '../app/settings';
+import { barreFollowerStrings, barreGroups } from '../components/chord-diagram';
 import * as repo from '../storage/repo';
 import { STRING_COUNT, STRING_NAMES, type Chord } from '../types/models';
 
@@ -157,6 +158,26 @@ export function renderChordEditor(root: HTMLElement, ctx: RouteContext): () => v
       }
       if (!atNut) board.appendChild(text(GRID_LEFT - 26, GRID_TOP + FRET_GAP / 2, String(draft.startFret), 15, dim));
 
+      // Barre bars (same fret + same finger = one finger across the neck)
+      const followers = barreFollowerStrings(draft.strings);
+      for (const group of barreGroups(draft.strings)) {
+        const rel = group.fret - draft.startFret;
+        if (rel < 0 || rel >= FRETS_SHOWN) continue;
+        const y = GRID_TOP + rel * FRET_GAP + FRET_GAP / 2;
+        const xs = group.strings.map(stringX);
+        board.appendChild(
+          el('line', {
+            x1: Math.min(...xs),
+            y1: y,
+            x2: Math.max(...xs),
+            y2: y,
+            stroke: accent,
+            'stroke-width': 26, // matches the editor's dot diameter
+            'stroke-linecap': 'round',
+          }),
+        );
+      }
+
       // Nut-state markers + fretted dots
       draft.strings.forEach((cs, s) => {
         const x = stringX(s);
@@ -181,7 +202,7 @@ export function renderChordEditor(root: HTMLElement, ctx: RouteContext): () => v
           if (rel >= 0 && rel < FRETS_SHOWN) {
             const y = GRID_TOP + rel * FRET_GAP + FRET_GAP / 2;
             board.appendChild(el('circle', { cx: x, cy: y, r: 13, fill: accent }));
-            if (cs.finger) board.appendChild(text(x, y, String(cs.finger), 14, '#141414'));
+            if (cs.finger && !followers.has(s)) board.appendChild(text(x, y, String(cs.finger), 14, '#141414'));
           }
         }
 

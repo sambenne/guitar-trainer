@@ -1,6 +1,42 @@
 import { getSettings } from '../app/settings';
-import type { Chord } from '../types/models';
+import type { Chord, ChordString } from '../types/models';
 import { STRING_COUNT } from '../types/models';
+
+export interface BarreGroup {
+  fret: number;
+  finger: number;
+  /** String indices (low E = 0) held down by this one finger. */
+  strings: number[];
+}
+
+/**
+ * Strings sharing a fret AND a finger number are a barre: one finger lying
+ * across the neck. Diagrams draw these as a bar rather than separate dots.
+ */
+export function barreGroups(strings: ChordString[]): BarreGroup[] {
+  const groups = new Map<string, number[]>();
+  strings.forEach((cs, i) => {
+    if (cs.state !== 'fretted' || !cs.fret || !cs.finger) return;
+    const key = `${cs.fret}:${cs.finger}`;
+    groups.set(key, [...(groups.get(key) ?? []), i]);
+  });
+  return [...groups.entries()]
+    .filter(([, indices]) => indices.length >= 2)
+    .map(([key, indices]) => {
+      const [fret, finger] = key.split(':').map(Number);
+      return { fret, finger, strings: indices };
+    });
+}
+
+/** Barred strings that should not repeat the finger number — all but the bass-most. */
+export function barreFollowerStrings(strings: ChordString[]): Set<number> {
+  const followers = new Set<number>();
+  for (const group of barreGroups(strings)) {
+    const label = Math.min(...group.strings);
+    for (const s of group.strings) if (s !== label) followers.add(s);
+  }
+  return followers;
+}
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -98,6 +134,26 @@ export function createChordDiagram(): { svg: SVGSVGElement; render: (chord: Chor
       svg.appendChild(text(GRID_LEFT - 20, GRID_TOP + FRET_GAP / 2, String(chord.startFret), 15, stringColor));
     }
 
+    // Barre bars first, so the finger dots sit on top of them
+    const followers = barreFollowerStrings(chord.strings);
+    for (const group of barreGroups(chord.strings)) {
+      const relFret = group.fret - chord.startFret;
+      if (relFret < 0 || relFret >= FRETS_SHOWN) continue;
+      const y = GRID_TOP + relFret * FRET_GAP + FRET_GAP / 2;
+      const xs = group.strings.map(stringX);
+      svg.appendChild(
+        el('line', {
+          x1: Math.min(...xs),
+          y1: y,
+          x2: Math.max(...xs),
+          y2: y,
+          stroke: accent,
+          'stroke-width': 22, // matches the finger-dot diameter
+          'stroke-linecap': 'round',
+        }),
+      );
+    }
+
     // Per-string markers
     chord.strings.forEach((cs, s) => {
       const x = stringX(s);
@@ -125,7 +181,7 @@ export function createChordDiagram(): { svg: SVGSVGElement; render: (chord: Chor
         if (relFret < 0 || relFret >= FRETS_SHOWN) return;
         const y = GRID_TOP + relFret * FRET_GAP + FRET_GAP / 2;
         svg.appendChild(el('circle', { cx: x, cy: y, r: 11, fill: accent }));
-        if (cs.finger) svg.appendChild(text(x, y, String(cs.finger), 13, '#141414'));
+        if (cs.finger && !followers.has(s)) svg.appendChild(text(x, y, String(cs.finger), 13, '#141414'));
       }
     });
   }
