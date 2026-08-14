@@ -1,7 +1,7 @@
 import './chords.css';
 import { createChordDiagram } from '../components/chord-diagram';
 import { bestOfSet, createMicDetector, targetMatches, type DetectorFrame, type MicDetector } from '../audio/chord-detector';
-import { createStrumLimiter, loadSampler, strumChordDownUp } from '../audio/sampler';
+import { createStrumLimiter, loadSampler, strumChord } from '../audio/sampler';
 import { getSettings, saveSettings } from '../app/settings';
 import * as repo from '../storage/repo';
 import type { Chord } from '../types/models';
@@ -68,21 +68,36 @@ export function renderChordsPage(root: HTMLElement): () => void {
     return { ctx, master: master!, buffers };
   }
 
-  async function playChord(chord: Chord, btn: HTMLButtonElement): Promise<void> {
+  /** One slow stroke in the chosen direction, so every string is audible. */
+  async function playChord(chord: Chord, btn: HTMLButtonElement, direction: 'D' | 'U'): Promise<void> {
     const label = btn.textContent;
     btn.disabled = true;
     try {
       const { ctx, master, buffers } = await audio();
-      const seconds = strumChordDownUp(ctx, master, buffers, chord);
-      setTimeout(() => (btn.disabled = false), seconds * 1000);
+      strumChord(ctx, master, buffers, chord, { direction, spread: 0.045 });
+      setTimeout(() => (btn.disabled = false), 400);
     } catch (err) {
       console.error(err);
-      btn.textContent = 'Sound unavailable';
+      btn.textContent = '✕';
       setTimeout(() => {
         btn.textContent = label;
         btn.disabled = false;
       }, 1500);
     }
+  }
+
+  /** Down/up pair of "hear it" buttons, wired to whatever chord the caller resolves. */
+  function strumButtons(getChord: () => Chord): HTMLElement {
+    const holder = document.createElement('div');
+    holder.className = 'strum-buttons';
+    holder.innerHTML = `
+      <button class="strum-sound-btn" data-dir="D" aria-label="Hear a downstroke">🔊 ↓</button>
+      <button class="strum-sound-btn" data-dir="U" aria-label="Hear an upstroke">🔊 ↑</button>
+    `;
+    holder.querySelectorAll<HTMLButtonElement>('.strum-sound-btn').forEach((btn) => {
+      btn.addEventListener('click', () => void playChord(getChord(), btn, btn.dataset.dir as 'D' | 'U'));
+    });
+    return holder;
   }
 
   root.innerHTML = `
@@ -215,10 +230,10 @@ export function renderChordsPage(root: HTMLElement): () => void {
           </div>
           <button class="cycle-btn next" aria-label="Next chord">›</button>
         </div>
-        <button class="strum-sound-btn">🔊 Strum</button>
       </div>
     `;
-    hint.textContent = 'Cycle through every chord in your library. Tap Strum to hear how it should sound.';
+    hint.textContent =
+      'Cycle through every chord in your library. Hear it as a downstroke or an upstroke — the upstroke starts at the thin strings, which catches a buzzing one.';
 
     const stage = body.querySelector('.chord-stage') as HTMLElement;
     const nameEl = body.querySelector('.chord-name') as HTMLElement;
@@ -241,8 +256,7 @@ export function renderChordsPage(root: HTMLElement): () => void {
       lastSingleIdx = (lastSingleIdx + 1) % chords.length;
       show();
     });
-    const strumBtn = body.querySelector('.strum-sound-btn') as HTMLButtonElement;
-    strumBtn.addEventListener('click', () => void playChord(chords[lastSingleIdx], strumBtn));
+    (body.querySelector('.chord-single') as HTMLElement).appendChild(strumButtons(() => chords[lastSingleIdx]));
     show();
   }
 
@@ -254,7 +268,6 @@ export function renderChordsPage(root: HTMLElement): () => void {
             (side) => `
           <div class="compare-panel card" data-side="${side}">
             <select aria-label="Chord ${side + 1}"></select>
-            <button class="strum-sound-btn">🔊 Strum</button>
           </div>`,
           )
           .join('')}
@@ -265,18 +278,20 @@ export function renderChordsPage(root: HTMLElement): () => void {
     body.querySelectorAll<HTMLElement>('.compare-panel').forEach((panel) => {
       const side = Number(panel.dataset.side) as 0 | 1;
       const select = panel.querySelector('select') as HTMLSelectElement;
-      const strumBtn = panel.querySelector('.strum-sound-btn') as HTMLButtonElement;
-      select.innerHTML = chords
-        .map((c, i) => `<option value="${i}" ${i === lastCompare[side] ? 'selected' : ''}>${c.name}</option>`)
-        .join('');
+      select.replaceChildren();
+      chords.forEach((c, i) => {
+        const option = new Option(c.name, String(i));
+        option.selected = i === lastCompare[side];
+        select.add(option);
+      });
       const diagram = createChordDiagram();
-      panel.insertBefore(diagram.svg, strumBtn);
+      panel.appendChild(diagram.svg);
       diagram.render(chords[lastCompare[side]]);
       select.addEventListener('change', () => {
         lastCompare[side] = Number(select.value);
         diagram.render(chords[lastCompare[side]]);
       });
-      strumBtn.addEventListener('click', () => void playChord(chords[lastCompare[side]], strumBtn));
+      panel.appendChild(strumButtons(() => chords[lastCompare[side]]));
     });
   }
 
@@ -342,19 +357,17 @@ export function renderChordsPage(root: HTMLElement): () => void {
           <span class="board-chord-name"></span>
           <button class="board-remove ghost" aria-label="Remove from board">✕</button>
         </div>
-        <button class="board-strum ghost" aria-label="Hear this chord">🔊</button>
       `;
       (cell.querySelector('.board-chord-name') as HTMLElement).textContent = chord.name;
       const diagram = createChordDiagram();
-      cell.insertBefore(diagram.svg, cell.querySelector('.board-strum'));
+      cell.appendChild(diagram.svg);
       diagram.render(chord);
       (cell.querySelector('.board-remove') as HTMLElement).addEventListener('click', () => {
         boardIds = boardIds.filter((x) => x !== id);
         saveSettings({ chordBoardIds: boardIds });
         renderBoard();
       });
-      const strumBtn = cell.querySelector('.board-strum') as HTMLButtonElement;
-      strumBtn.addEventListener('click', () => void playChord(chord, strumBtn));
+      cell.appendChild(strumButtons(() => chord));
       board.appendChild(cell);
     }
   }

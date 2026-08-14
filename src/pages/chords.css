@@ -68,9 +68,18 @@
   color: var(--text-dim);
 }
 
+.strum-buttons {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  max-width: 300px;
+}
+
 .strum-sound-btn {
-  min-width: 160px;
-  font-size: 16px;
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  white-space: nowrap;
 }
 
 .strum-sound-btn:disabled {
@@ -102,8 +111,9 @@
 }
 
 .chord-compare .strum-sound-btn {
-  min-width: 0;
-  width: 100%;
+  min-height: 40px;
+  font-size: 13px;
+  padding: 8px 4px;
 }
 
 .chords-page .hint {
@@ -163,12 +173,17 @@
   padding-left: 6px;
 }
 
-.board-cell .board-remove,
-.board-cell .board-strum {
+.board-cell .board-remove {
   min-height: 32px;
   min-width: 32px;
   padding: 2px 8px;
   font-size: 13px;
+}
+
+.board-cell .strum-sound-btn {
+  min-height: 40px; /* stays a comfortable tap target in the dense grid */
+  padding: 4px 2px;
+  font-size: 12px;
 }
 
 .board-cell .chord-diagram {
