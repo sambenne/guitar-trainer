@@ -64,6 +64,51 @@ function nearestSample(buffers: Map<number, AudioBuffer>, midi: number): { midi:
   return best!;
 }
 
+/**
+ * Safety limiter for strum output. Per-voice gain alone cannot guarantee
+ * headroom: a tight strum of a four-string chord sums almost coherently and
+ * peaked at 1.28 in testing. Route strums through this instead of straight to
+ * the destination.
+ */
+export function createStrumLimiter(ctx: BaseAudioContext): DynamicsCompressorNode {
+  const limiter = ctx.createDynamicsCompressor();
+  limiter.threshold.value = -3;
+  limiter.knee.value = 0;
+  limiter.ratio.value = 20;
+  limiter.attack.value = 0.002;
+  limiter.release.value = 0.12;
+  return limiter;
+}
+
+/** Gap between the down and the up of a demonstration strum. */
+const DOWN_UP_GAP = 0.55;
+
+/**
+ * "Hear this chord": a slow downstroke so each string is audible, then a
+ * lighter upstroke — which sweeps the top strings first and exposes a buzzing
+ * high string that a downstroke can hide. Returns the total duration.
+ */
+export function strumChordDownUp(
+  ctx: BaseAudioContext,
+  destination: AudioNode,
+  buffers: Map<number, AudioBuffer>,
+  chord: Chord,
+  opts: { when?: number; capo?: number } = {},
+): number {
+  const when = opts.when ?? ctx.currentTime;
+  strumChord(ctx, destination, buffers, chord, { when, spread: 0.045, capo: opts.capo });
+  strumChord(ctx, destination, buffers, chord, {
+    when: when + DOWN_UP_GAP,
+    direction: 'U',
+    spread: 0.03,
+    // Lighter, both because upstrokes are and because it stacks on the
+    // still-ringing downstroke.
+    gain: 0.55,
+    capo: opts.capo,
+  });
+  return DOWN_UP_GAP + 0.2;
+}
+
 export interface StrumOptions {
   /** AudioContext time to start; defaults to now. */
   when?: number;
@@ -82,7 +127,8 @@ export interface StrumOptions {
  * Returns the time of the last string onset.
  */
 export function strumChord(
-  ctx: AudioContext,
+  // BaseAudioContext so the same code can render offline (used by tests/tools)
+  ctx: BaseAudioContext,
   destination: AudioNode,
   buffers: Map<number, AudioBuffer>,
   chord: Chord,
@@ -104,7 +150,9 @@ export function strumChord(
     src.playbackRate.value = Math.pow(2, (note.midi - sample.midi) / 12);
 
     const g = ctx.createGain();
-    g.gain.value = gain / Math.max(2.2, notes.length * 0.55); // keep 6-string strums from clipping
+    // Headroom for the worst case: six strings whose transients align. At 0.55
+    // a full G peaked slightly over 1.0 and clipped a few samples.
+    g.gain.value = gain / Math.max(2.2, notes.length * 0.62);
     src.connect(g);
     g.connect(destination);
     t = when + i * spread;

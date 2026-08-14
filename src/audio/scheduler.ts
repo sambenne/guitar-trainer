@@ -1,7 +1,7 @@
 import type { Timeline } from './timeline';
 import type { Chord, StrummingPattern } from '../types/models';
 import { scheduleClick } from './metronome';
-import { loadSampler, strumChord } from './sampler';
+import { createStrumLimiter, loadSampler, strumChord } from './sampler';
 
 /**
  * Lookahead scheduler ("A Tale of Two Clocks" pattern).
@@ -93,7 +93,9 @@ export function createPlayer(
     if (!guitarGain) {
       guitarGain = ctx.createGain();
       guitarGain.gain.value = guitarVolume;
-      guitarGain.connect(masterGain);
+      const limiter = createStrumLimiter(ctx);
+      guitarGain.connect(limiter);
+      limiter.connect(masterGain);
     }
     if (guitarEnabled && !sampleBuffers) {
       // Fire and forget — decoding usually finishes during the count-in.

@@ -1,7 +1,7 @@
 import './chords.css';
 import { createChordDiagram } from '../components/chord-diagram';
 import { bestOfSet, createMicDetector, targetMatches, type DetectorFrame, type MicDetector } from '../audio/chord-detector';
-import { loadSampler, strumChord } from '../audio/sampler';
+import { createStrumLimiter, loadSampler, strumChordDownUp } from '../audio/sampler';
 import { getSettings, saveSettings } from '../app/settings';
 import * as repo from '../storage/repo';
 import type { Chord } from '../types/models';
@@ -59,7 +59,9 @@ export function renderChordsPage(root: HTMLElement): () => void {
     if (!ctx) {
       ctx = new AudioContext();
       master = ctx.createGain();
-      master.connect(ctx.destination);
+      const limiter = createStrumLimiter(ctx);
+      master.connect(limiter);
+      limiter.connect(ctx.destination);
     }
     if (ctx.state === 'suspended') await ctx.resume();
     const buffers = await loadSampler(ctx);
@@ -71,8 +73,8 @@ export function renderChordsPage(root: HTMLElement): () => void {
     btn.disabled = true;
     try {
       const { ctx, master, buffers } = await audio();
-      strumChord(ctx, master, buffers, chord, { spread: 0.045 }); // slow roll — hear each string
-      setTimeout(() => (btn.disabled = false), 400);
+      const seconds = strumChordDownUp(ctx, master, buffers, chord);
+      setTimeout(() => (btn.disabled = false), seconds * 1000);
     } catch (err) {
       console.error(err);
       btn.textContent = 'Sound unavailable';

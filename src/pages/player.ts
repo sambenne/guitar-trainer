@@ -4,7 +4,7 @@ import { navigate } from '../app/router';
 import { getSettings } from '../app/settings';
 import { compileTimeline, nextChordChangeForPlayback, type Timeline } from '../audio/timeline';
 import { createPlayer, type Player } from '../audio/scheduler';
-import { loadSampler, strumChord } from '../audio/sampler';
+import { createStrumLimiter, loadSampler, strumChord, strumChordDownUp } from '../audio/sampler';
 import { createChordDiagram } from '../components/chord-diagram';
 import { createStrumDisplay } from '../components/strum-display';
 import { getChordMap, getPatternMap, getSong, logPractice } from '../storage/repo';
@@ -18,12 +18,18 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
   let player: Player | null = null;
   let wakeLock: WakeLockSentinel | null = null;
   let practiceCtx: AudioContext | null = null;
+  let practiceOut: AudioNode | null = null;
   let endPracticeLog: (() => void) | null = null;
 
-  async function practiceAudio(): Promise<{ ctx: AudioContext; buffers: Map<number, AudioBuffer> }> {
-    if (!practiceCtx) practiceCtx = new AudioContext();
+  async function practiceAudio(): Promise<{ ctx: AudioContext; out: AudioNode; buffers: Map<number, AudioBuffer> }> {
+    if (!practiceCtx) {
+      practiceCtx = new AudioContext();
+      const limiter = createStrumLimiter(practiceCtx);
+      limiter.connect(practiceCtx.destination);
+      practiceOut = limiter;
+    }
     if (practiceCtx.state === 'suspended') await practiceCtx.resume();
-    return { ctx: practiceCtx, buffers: await loadSampler(practiceCtx) };
+    return { ctx: practiceCtx, out: practiceOut!, buffers: await loadSampler(practiceCtx) };
   }
 
   root.innerHTML = `<div class="player"><p class="muted" style="padding:16px">Loading…</p></div>`;
@@ -440,21 +446,23 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     soundBtn.addEventListener('click', async () => {
       soundBtn.disabled = true;
       try {
-        const { ctx, buffers } = await practiceAudio();
+        const { ctx, out, buffers } = await practiceAudio();
         if (splitMode && songTransitions.length > 0) {
           const [a, b] = songTransitions[transitionIdx];
           const chordA = chords.get(a);
           const chordB = chords.get(b);
-          if (chordA) strumChord(ctx, ctx.destination, buffers, chordA, { spread: 0.045, capo });
-          if (chordB) strumChord(ctx, ctx.destination, buffers, chordB, { when: ctx.currentTime + 1.1, spread: 0.045, capo });
+          if (chordA) strumChord(ctx, out, buffers, chordA, { spread: 0.045, capo });
+          if (chordB) strumChord(ctx, out, buffers, chordB, { when: ctx.currentTime + 1.1, spread: 0.045, capo });
         } else {
+          // Single chord: down then up. (Split view keeps one stroke each, so
+          // the boundary between the two chords stays obvious.)
           const chord = chords.get(displayedChordId());
-          if (chord) strumChord(ctx, ctx.destination, buffers, chord, { spread: 0.045, capo });
+          if (chord) strumChordDownUp(ctx, out, buffers, chord, { capo });
         }
       } catch (err) {
         console.error(err);
       } finally {
-        setTimeout(() => (soundBtn.disabled = false), 400);
+        setTimeout(() => (soundBtn.disabled = false), 800);
       }
     });
 
@@ -467,12 +475,12 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
         const pattern = shownPatternId ? patterns.get(shownPatternId) : null;
         const chord = chords.get(displayedChordId());
         if (!pattern || !chord) return;
-        const { ctx, buffers } = await practiceAudio();
+        const { ctx, out, buffers } = await practiceAudio();
         const stepDur = (60 / player.getBpm()) * (timeline.beatsPerBar / pattern.steps.length);
         const t0 = ctx.currentTime + 0.1;
         pattern.steps.forEach((step, i) => {
           if (step.direction === '-') return;
-          strumChord(ctx, ctx.destination, buffers, chord, {
+          strumChord(ctx, out, buffers, chord, {
             when: t0 + i * stepDur,
             direction: step.direction,
             spread: 0.01,

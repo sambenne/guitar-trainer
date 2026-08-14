@@ -2,7 +2,7 @@ import './editor.css';
 import type { RouteContext } from '../app/router';
 import { navigate } from '../app/router';
 import { getSettings } from '../app/settings';
-import { loadSampler, strumChord } from '../audio/sampler';
+import { createStrumLimiter, loadSampler, strumChord } from '../audio/sampler';
 import { createStrumDisplay } from '../components/strum-display';
 import { PRESET_CHORDS } from '../data/chords';
 import * as repo from '../storage/repo';
@@ -19,6 +19,7 @@ const MIN_STEPS = 4;
 export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () => void {
   let disposed = false;
   let audioCtx: AudioContext | null = null;
+  let audioOut: AudioNode | null = null;
   let previewing = false;
 
   const [id, query] = (ctx.params.id ?? '').split('?');
@@ -173,7 +174,12 @@ export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () =>
       previewing = true;
       playBtn.disabled = true;
       try {
-        if (!audioCtx) audioCtx = new AudioContext();
+        if (!audioCtx) {
+          audioCtx = new AudioContext();
+          const limiter = createStrumLimiter(audioCtx);
+          limiter.connect(audioCtx.destination);
+          audioOut = limiter;
+        }
         if (audioCtx.state === 'suspended') await audioCtx.resume();
         const buffers = await loadSampler(audioCtx);
 
@@ -181,7 +187,7 @@ export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () =>
         const t0 = audioCtx.currentTime + 0.1;
         draft.steps.forEach((step, i) => {
           if (step.direction === '-') return;
-          strumChord(audioCtx!, audioCtx!.destination, buffers, PREVIEW_CHORD, {
+          strumChord(audioCtx!, audioOut!, buffers, PREVIEW_CHORD, {
             when: t0 + i * stepDur,
             direction: step.direction,
             spread: 0.01,
