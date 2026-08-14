@@ -676,11 +676,37 @@ export const PRESET_SONGS: Song[] = [
     artist: 'Radiohead',
     bpm: 92,
     timeSignature: { beats: 4, noteValue: 4 },
+    // Every section is the same G–B–C–Cm loop; they differ only in length and
+    // feel, which is exactly what makes the song what it is. Split out so each
+    // part can be looped on its own.
     sections: [
       {
-        id: 'main',
-        name: 'Verse / Chorus',
-        repeat: 4,
+        id: 'verse',
+        name: 'Verse',
+        repeat: 2,
+        bars: [
+          { chordId: 'g', patternId: 'p-creep' },
+          { chordId: 'b', patternId: 'p-creep' },
+          { chordId: 'c', patternId: 'p-creep' },
+          { chordId: 'cm', patternId: 'p-creep' },
+        ],
+      },
+      {
+        // "I wish I was special" — one cycle, then the chorus lands.
+        id: 'pre-chorus',
+        name: 'Pre-Chorus',
+        repeat: 1,
+        bars: [
+          { chordId: 'g', patternId: 'p-creep' },
+          { chordId: 'b', patternId: 'p-creep' },
+          { chordId: 'c', patternId: 'p-creep' },
+          { chordId: 'cm', patternId: 'p-creep' },
+        ],
+      },
+      {
+        id: 'chorus',
+        name: 'Chorus',
+        repeat: 2,
         bars: [
           { chordId: 'g', patternId: 'p-creep' },
           { chordId: 'b', patternId: 'p-creep' },
