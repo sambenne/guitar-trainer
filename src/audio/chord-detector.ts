@@ -85,6 +85,21 @@ export function allScores(chroma: number[], templates: ChordTemplate[]): Record<
 }
 
 /**
+ * Which chord of a chosen set was heard: the best-scoring member above the
+ * threshold. Restricting the argmax to the set is what makes a board of
+ * similar voicings usable — the question is "which of these", not "which of all".
+ */
+export function bestOfSet(ids: string[], scores: Record<string, number>): { id: string; score: number } | null {
+  let best: { id: string; score: number } | null = null;
+  for (const id of ids) {
+    const score = scores[id];
+    if (score === undefined) continue;
+    if (!best || score > best.score) best = { id, score };
+  }
+  return best && best.score >= MATCH_THRESHOLD ? best : null;
+}
+
+/**
  * Is `targetId` effectively what was heard? True when the target scores above
  * the threshold and within a small margin of the outright winner — voicing
  * variants (Em7 vs Em, Cadd9 vs C) overlap too much to demand an exact argmax.
@@ -118,7 +133,9 @@ export async function createMicDetector(
   const source = ctx.createMediaStreamSource(stream);
   const analyser = ctx.createAnalyser();
   analyser.fftSize = 8192;
-  analyser.smoothingTimeConstant = 0.6;
+  // Light smoothing only: chord changes must show up within a beat, and the
+  // two-frame debounce below already suppresses flicker.
+  analyser.smoothingTimeConstant = 0.25;
   source.connect(analyser);
 
   const templates = buildTemplates(chords);
@@ -134,7 +151,7 @@ export async function createMicDetector(
     const stable = id === lastId;
     lastId = id;
     onUpdate(stable && chroma ? { best: match, scores: allScores(chroma, templates) } : null);
-  }, 150);
+  }, 100);
 
   return {
     stop() {

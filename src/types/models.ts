@@ -108,6 +108,8 @@ export interface Settings {
   stringOrientation: 'lowTop' | 'highTop';
   /** Mirror chord diagrams for left-handed players (low E on the right). */
   leftHanded: boolean;
+  /** Chord IDs pinned to the Chords tab board. */
+  chordBoardIds: string[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -117,4 +119,5 @@ export const DEFAULT_SETTINGS: Settings = {
   strumVolume: 0.8,
   stringOrientation: 'lowTop',
   leftHanded: false,
+  chordBoardIds: ['g', 'c', 'd', 'em'],
 };

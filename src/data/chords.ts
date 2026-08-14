@@ -188,6 +188,34 @@ export const PRESET_CHORDS: Chord[] = [
     ],
   },
   {
+    // A-shape barre at the 2nd fret: index bars fret 2, fingers 2/3/4 on fret 4.
+    id: 'b',
+    name: 'B',
+    startFret: 2,
+    strings: [
+      { state: 'muted' },
+      { state: 'fretted', fret: 2, finger: 1 },
+      { state: 'fretted', fret: 4, finger: 2 },
+      { state: 'fretted', fret: 4, finger: 3 },
+      { state: 'fretted', fret: 4, finger: 4 },
+      { state: 'fretted', fret: 2, finger: 1 },
+    ],
+  },
+  {
+    // Am-shape barre at the 3rd fret.
+    id: 'cm',
+    name: 'Cm',
+    startFret: 3,
+    strings: [
+      { state: 'muted' },
+      { state: 'fretted', fret: 3, finger: 1 },
+      { state: 'fretted', fret: 5, finger: 3 },
+      { state: 'fretted', fret: 5, finger: 4 },
+      { state: 'fretted', fret: 4, finger: 2 },
+      { state: 'fretted', fret: 3, finger: 1 },
+    ],
+  },
+  {
     id: 'd7',
     name: 'D7',
     startFret: 1,

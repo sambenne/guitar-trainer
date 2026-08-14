@@ -669,6 +669,27 @@ export const PRESET_SONGS: Song[] = [
     ],
   },
   {
+    // The whole song is one four-chord loop — B and Cm are barre chords.
+    id: 'creep',
+    title: 'Creep',
+    artist: 'Radiohead',
+    bpm: 92,
+    timeSignature: { beats: 4, noteValue: 4 },
+    sections: [
+      {
+        id: 'main',
+        name: 'Verse / Chorus',
+        repeat: 4,
+        bars: [
+          { chordId: 'g', patternId: 'p-four-downs' },
+          { chordId: 'b', patternId: 'p-four-downs' },
+          { chordId: 'c', patternId: 'p-four-downs' },
+          { chordId: 'cm', patternId: 'p-four-downs' },
+        ],
+      },
+    ],
+  },
+  {
     id: 'zombie',
     title: 'Zombie',
     artist: 'The Cranberries',

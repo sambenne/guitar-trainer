@@ -111,6 +111,86 @@
   font-size: 13px;
 }
 
+/* ---- Board mode ---- */
+
+.board-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.board-controls select {
+  flex: 1;
+  min-width: 0;
+  padding: 9px;
+}
+
+.chord-board {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+@media (min-width: 620px) {
+  .chord-board {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.board-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border: 2px solid var(--border);
+  transition:
+    border-color 0.12s,
+    background 0.12s;
+}
+
+.board-cell-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.board-chord-name {
+  font-size: 20px;
+  font-weight: 700;
+  padding-left: 6px;
+}
+
+.board-cell .board-remove,
+.board-cell .board-strum {
+  min-height: 32px;
+  min-width: 32px;
+  padding: 2px 8px;
+  font-size: 13px;
+}
+
+.board-cell .chord-diagram {
+  width: 100%;
+}
+
+/* Lit by the microphone */
+.board-cell.heard {
+  border-color: #58c470;
+  background: color-mix(in srgb, #58c470 12%, var(--panel));
+}
+
+.board-cell.heard .board-chord-name {
+  color: #58c470;
+}
+
+.board-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 24px 8px;
+}
+
 /* Microphone listen mode */
 .listen-row {
   display: flex;

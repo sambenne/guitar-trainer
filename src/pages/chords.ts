@@ -1,14 +1,17 @@
 import './chords.css';
 import { createChordDiagram } from '../components/chord-diagram';
-import { createMicDetector, targetMatches, type DetectorFrame, type MicDetector } from '../audio/chord-detector';
+import { bestOfSet, createMicDetector, targetMatches, type DetectorFrame, type MicDetector } from '../audio/chord-detector';
 import { loadSampler, strumChord } from '../audio/sampler';
+import { getSettings, saveSettings } from '../app/settings';
 import * as repo from '../storage/repo';
 import type { Chord } from '../types/models';
 
-type Mode = 'single' | 'compare';
+type Mode = 'single' | 'compare' | 'board';
 
 /** Time counts while the page is visible and within this window of a tap. */
 const ACTIVE_WINDOW_MS = 3 * 60 * 1000;
+/** Keep a board chord lit this long after the last detection, so it doesn't flicker. */
+const HIGHLIGHT_HOLD_MS = 700;
 
 let lastMode: Mode = 'single';
 let lastSingleIdx = 0;
@@ -17,6 +20,7 @@ let lastCompare: [number, number] = [0, 1];
 export function renderChordsPage(root: HTMLElement): () => void {
   let disposed = false;
   let chords: Chord[] = [];
+  let boardIds: string[] = [];
   let ctx: AudioContext | null = null;
   let master: GainNode | null = null;
 
@@ -63,6 +67,7 @@ export function renderChordsPage(root: HTMLElement): () => void {
   }
 
   async function playChord(chord: Chord, btn: HTMLButtonElement): Promise<void> {
+    const label = btn.textContent;
     btn.disabled = true;
     try {
       const { ctx, master, buffers } = await audio();
@@ -72,7 +77,7 @@ export function renderChordsPage(root: HTMLElement): () => void {
       console.error(err);
       btn.textContent = 'Sound unavailable';
       setTimeout(() => {
-        btn.textContent = '🔊 Strum';
+        btn.textContent = label;
         btn.disabled = false;
       }, 1500);
     }
@@ -84,6 +89,7 @@ export function renderChordsPage(root: HTMLElement): () => void {
       <div class="mode-toggle" role="tablist">
         <button data-mode="single" aria-pressed="true">Practice</button>
         <button data-mode="compare" aria-pressed="false">Compare</button>
+        <button data-mode="board" aria-pressed="false">Board</button>
       </div>
       <div class="listen-row">
         <button class="listen-btn" aria-pressed="false">🎤 Listen</button>
@@ -104,8 +110,38 @@ export function renderChordsPage(root: HTMLElement): () => void {
     return chords[lastSingleIdx] ? [chords[lastSingleIdx]] : [];
   }
 
+  // Board mode: light up whichever board chord scores best, held briefly so
+  // the highlight survives the gap between strums.
+  let heardId: string | null = null;
+  let heardAtMs = 0;
+
+  function applyBoardFrame(frame: DetectorFrame | null): void {
+    const hit = frame ? bestOfSet(boardIds, frame.scores) : null;
+    if (hit) {
+      heardId = hit.id;
+      heardAtMs = Date.now();
+    } else if (heardId && Date.now() - heardAtMs > HIGHLIGHT_HOLD_MS) {
+      heardId = null;
+    }
+    root.querySelectorAll<HTMLElement>('.board-cell').forEach((cell) => {
+      cell.classList.toggle('heard', cell.dataset.chordId === heardId);
+    });
+    const name = heardId ? chords.find((c) => c.id === heardId)?.name : null;
+    if (name) {
+      listenStatus.textContent = `✓ ${name}`;
+      listenStatus.classList.add('match');
+    } else {
+      listenStatus.textContent = frame?.best ? `Heard: ${frame.best.name} (not on the board)` : 'Listening…';
+      listenStatus.classList.remove('match');
+    }
+  }
+
   function onDetectorFrame(frame: DetectorFrame | null): void {
     if (disposed) return;
+    if (lastMode === 'board') {
+      applyBoardFrame(frame);
+      return;
+    }
     root.querySelectorAll('.compare-panel.heard-match').forEach((p) => p.classList.remove('heard-match'));
     if (!frame) {
       listenStatus.textContent = 'Listening…';
@@ -156,8 +192,10 @@ export function renderChordsPage(root: HTMLElement): () => void {
     root.querySelectorAll<HTMLButtonElement>('.mode-toggle button').forEach((b) => {
       b.setAttribute('aria-pressed', String(b.dataset.mode === mode));
     });
+    heardId = null;
     if (mode === 'single') renderSingle();
-    else renderCompare();
+    else if (mode === 'compare') renderCompare();
+    else renderBoard();
   }
 
   root.querySelectorAll<HTMLButtonElement>('.mode-toggle button').forEach((b) => {
@@ -240,9 +278,89 @@ export function renderChordsPage(root: HTMLElement): () => void {
     });
   }
 
+  function renderBoard(): void {
+    body.innerHTML = `
+      <div class="board-controls">
+        <select class="board-add" aria-label="Add a chord to the board"></select>
+        <select class="board-from-song" aria-label="Load the chords of a song"></select>
+      </div>
+      <div class="chord-board"></div>
+    `;
+    hint.textContent =
+      'Show the chords of the song you’re learning, turn on Listen, and each one lights up as you play it.';
+
+    const addSelect = body.querySelector('.board-add') as HTMLSelectElement;
+    addSelect.add(new Option('+ Add chord…', ''));
+    chords
+      .filter((c) => !boardIds.includes(c.id))
+      .forEach((c) => addSelect.add(new Option(c.name, c.id)));
+    addSelect.addEventListener('change', () => {
+      if (!addSelect.value) return;
+      boardIds = [...boardIds, addSelect.value];
+      saveSettings({ chordBoardIds: boardIds });
+      renderBoard();
+    });
+
+    const songSelect = body.querySelector('.board-from-song') as HTMLSelectElement;
+    songSelect.add(new Option('Load from song…', ''));
+    void (async () => {
+      const songs = await repo.getSongs();
+      if (disposed) return;
+      songs.forEach((s) => songSelect.add(new Option(s.title, s.id)));
+      songSelect.addEventListener('change', async () => {
+        const song = songs.find((s) => s.id === songSelect.value);
+        if (!song) return;
+        const ids: string[] = [];
+        for (const section of song.sections) {
+          for (const bar of section.bars) {
+            if (!ids.includes(bar.chordId)) ids.push(bar.chordId);
+            if (bar.split && !ids.includes(bar.split.chordId)) ids.push(bar.split.chordId);
+          }
+        }
+        boardIds = ids.filter((id) => chords.some((c) => c.id === id));
+        saveSettings({ chordBoardIds: boardIds });
+        renderBoard();
+      });
+    })();
+
+    const board = body.querySelector('.chord-board') as HTMLElement;
+    if (boardIds.length === 0) {
+      board.innerHTML = `<p class="muted board-empty">Add chords above, or load them from a song.</p>`;
+      return;
+    }
+
+    for (const id of boardIds) {
+      const chord = chords.find((c) => c.id === id);
+      if (!chord) continue;
+      const cell = document.createElement('div');
+      cell.className = 'board-cell card';
+      cell.dataset.chordId = id;
+      cell.innerHTML = `
+        <div class="board-cell-head">
+          <span class="board-chord-name"></span>
+          <button class="board-remove ghost" aria-label="Remove from board">✕</button>
+        </div>
+        <button class="board-strum ghost" aria-label="Hear this chord">🔊</button>
+      `;
+      (cell.querySelector('.board-chord-name') as HTMLElement).textContent = chord.name;
+      const diagram = createChordDiagram();
+      cell.insertBefore(diagram.svg, cell.querySelector('.board-strum'));
+      diagram.render(chord);
+      (cell.querySelector('.board-remove') as HTMLElement).addEventListener('click', () => {
+        boardIds = boardIds.filter((x) => x !== id);
+        saveSettings({ chordBoardIds: boardIds });
+        renderBoard();
+      });
+      const strumBtn = cell.querySelector('.board-strum') as HTMLButtonElement;
+      strumBtn.addEventListener('click', () => void playChord(chord, strumBtn));
+      board.appendChild(cell);
+    }
+  }
+
   void (async () => {
     chords = await repo.listChords();
     if (disposed || chords.length === 0) return;
+    boardIds = getSettings().chordBoardIds.filter((id) => chords.some((c) => c.id === id));
     lastSingleIdx = Math.min(lastSingleIdx, chords.length - 1);
     lastCompare = [Math.min(lastCompare[0], chords.length - 1), Math.min(lastCompare[1], chords.length - 1)];
     setMode(lastMode);
