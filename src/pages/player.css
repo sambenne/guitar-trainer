@@ -116,9 +116,16 @@
 
 .pc-btn {
   min-height: 38px;
-  min-width: 42px;
-  padding: 4px 10px;
+  min-width: 40px;
+  padding: 4px 7px;
   font-size: 17px;
+}
+
+/* The two stroke buttons carry a speaker + arrow, so they need less padding */
+.pc-btn.pc-sound {
+  font-size: 13px;
+  padding: 4px 5px;
+  letter-spacing: -0.5px;
 }
 
 .pc-btn[aria-pressed='true'] {

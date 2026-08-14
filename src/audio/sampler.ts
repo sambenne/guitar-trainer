@@ -80,35 +80,6 @@ export function createStrumLimiter(ctx: BaseAudioContext): DynamicsCompressorNod
   return limiter;
 }
 
-/** Gap between the down and the up of a demonstration strum. */
-const DOWN_UP_GAP = 0.55;
-
-/**
- * "Hear this chord": a slow downstroke so each string is audible, then a
- * lighter upstroke — which sweeps the top strings first and exposes a buzzing
- * high string that a downstroke can hide. Returns the total duration.
- */
-export function strumChordDownUp(
-  ctx: BaseAudioContext,
-  destination: AudioNode,
-  buffers: Map<number, AudioBuffer>,
-  chord: Chord,
-  opts: { when?: number; capo?: number } = {},
-): number {
-  const when = opts.when ?? ctx.currentTime;
-  strumChord(ctx, destination, buffers, chord, { when, spread: 0.045, capo: opts.capo });
-  strumChord(ctx, destination, buffers, chord, {
-    when: when + DOWN_UP_GAP,
-    direction: 'U',
-    spread: 0.03,
-    // Lighter, both because upstrokes are and because it stacks on the
-    // still-ringing downstroke.
-    gain: 0.55,
-    capo: opts.capo,
-  });
-  return DOWN_UP_GAP + 0.2;
-}
-
 export interface StrumOptions {
   /** AudioContext time to start; defaults to now. */
   when?: number;

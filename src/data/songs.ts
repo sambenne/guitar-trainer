@@ -669,11 +669,14 @@ export const PRESET_SONGS: Song[] = [
     ],
   },
   {
-    // The whole song is one four-chord loop — B and Cm are barre chords.
+    // One four-chord loop; B and Cm are barre chords. Two bars per chord, so
+    // the strum pattern runs twice per chord as charted. BPM counts the
+    // eighth-note pulse (184 here = the record's 92 with sixteenth strums),
+    // because patterns are fixed at two steps per beat. Drop to 50% to practise.
     id: 'creep',
     title: 'Creep',
     artist: 'Radiohead',
-    bpm: 92,
+    bpm: 184,
     timeSignature: { beats: 4, noteValue: 4 },
     sections: [
       {
@@ -681,10 +684,14 @@ export const PRESET_SONGS: Song[] = [
         name: 'Verse / Chorus',
         repeat: 4,
         bars: [
-          { chordId: 'g', patternId: 'p-four-downs' },
-          { chordId: 'b', patternId: 'p-four-downs' },
-          { chordId: 'c', patternId: 'p-four-downs' },
-          { chordId: 'cm', patternId: 'p-four-downs' },
+          { chordId: 'g', patternId: 'p-creep' },
+          { chordId: 'g', patternId: 'p-creep' },
+          { chordId: 'b', patternId: 'p-creep' },
+          { chordId: 'b', patternId: 'p-creep' },
+          { chordId: 'c', patternId: 'p-creep' },
+          { chordId: 'c', patternId: 'p-creep' },
+          { chordId: 'cm', patternId: 'p-creep' },
+          { chordId: 'cm', patternId: 'p-creep' },
         ],
       },
     ],

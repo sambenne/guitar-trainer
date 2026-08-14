@@ -4,7 +4,7 @@ import { navigate } from '../app/router';
 import { getSettings } from '../app/settings';
 import { compileTimeline, nextChordChangeForPlayback, type Timeline } from '../audio/timeline';
 import { createPlayer, type Player } from '../audio/scheduler';
-import { createStrumLimiter, loadSampler, strumChord, strumChordDownUp } from '../audio/sampler';
+import { createStrumLimiter, loadSampler, strumChord } from '../audio/sampler';
 import { createChordDiagram } from '../components/chord-diagram';
 import { createStrumDisplay } from '../components/strum-display';
 import { getChordMap, getPatternMap, getSong, logPractice } from '../storage/repo';
@@ -145,7 +145,8 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
                 <button class="pc-btn pc-prev" aria-label="Previous chord">‹</button>
                 <button class="pc-btn pc-next" aria-label="Next chord">›</button>
                 <button class="pc-btn pc-split" aria-label="Show chord change" aria-pressed="false">⇄</button>
-                <button class="pc-btn pc-sound" aria-label="Play chord sound">🔊</button>
+                <button class="pc-btn pc-sound" data-dir="D" aria-label="Hear a downstroke" title="Hear a downstroke">🔊↓</button>
+                <button class="pc-btn pc-sound" data-dir="U" aria-label="Hear an upstroke" title="Hear an upstroke">🔊↑</button>
               </div>
             </div>
             <div class="chord-single-view">
@@ -390,7 +391,7 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     const splitView = $('.chord-split-view');
     const splitNames = [...root.querySelectorAll<HTMLElement>('.split-name')];
     const splitBtn = $<HTMLButtonElement>('.pc-split');
-    const soundBtn = $<HTMLButtonElement>('.pc-sound');
+    const soundBtns = [...root.querySelectorAll<HTMLButtonElement>('.pc-sound')];
     const previewBtn = $<HTMLButtonElement>('.strum-preview');
 
     function displayedChordId(): string {
@@ -443,27 +444,31 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
       renderPractice();
     });
 
-    soundBtn.addEventListener('click', async () => {
-      soundBtn.disabled = true;
-      try {
-        const { ctx, out, buffers } = await practiceAudio();
-        if (splitMode && songTransitions.length > 0) {
-          const [a, b] = songTransitions[transitionIdx];
-          const chordA = chords.get(a);
-          const chordB = chords.get(b);
-          if (chordA) strumChord(ctx, out, buffers, chordA, { spread: 0.045, capo });
-          if (chordB) strumChord(ctx, out, buffers, chordB, { when: ctx.currentTime + 1.1, spread: 0.045, capo });
-        } else {
-          // Single chord: down then up. (Split view keeps one stroke each, so
-          // the boundary between the two chords stays obvious.)
-          const chord = chords.get(displayedChordId());
-          if (chord) strumChordDownUp(ctx, out, buffers, chord, { capo });
+    soundBtns.forEach((soundBtn) => {
+      const direction = soundBtn.dataset.dir as 'D' | 'U';
+      soundBtn.addEventListener('click', async () => {
+        soundBtn.disabled = true;
+        try {
+          const { ctx, out, buffers } = await practiceAudio();
+          if (splitMode && songTransitions.length > 0) {
+            // Hear the change itself: both chords, same stroke, a beat apart.
+            const [a, b] = songTransitions[transitionIdx];
+            const chordA = chords.get(a);
+            const chordB = chords.get(b);
+            if (chordA) strumChord(ctx, out, buffers, chordA, { direction, spread: 0.045, capo });
+            if (chordB) {
+              strumChord(ctx, out, buffers, chordB, { when: ctx.currentTime + 1.1, direction, spread: 0.045, capo });
+            }
+          } else {
+            const chord = chords.get(displayedChordId());
+            if (chord) strumChord(ctx, out, buffers, chord, { direction, spread: 0.045, capo });
+          }
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setTimeout(() => (soundBtn.disabled = false), splitMode ? 1500 : 400);
         }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setTimeout(() => (soundBtn.disabled = false), 800);
-      }
+      });
     });
 
     let previewing = false;

@@ -109,6 +109,22 @@ export const PRESET_PATTERNS: StrummingPattern[] = [
     strings: [...ALL_STRINGS],
   },
   {
+    // Creep: D D U U D D D U — every eighth note struck, no rests.
+    id: 'p-creep',
+    name: 'Creep (D D UU DD DU)',
+    steps: [
+      { direction: 'D' },
+      { direction: 'D' },
+      { direction: 'U' },
+      { direction: 'U' },
+      { direction: 'D' },
+      { direction: 'D' },
+      { direction: 'D' },
+      { direction: 'U' },
+    ],
+    strings: [...ALL_STRINGS],
+  },
+  {
     // Country/rock: three straight downs, then down-up on 4.
     id: 'p-country',
     name: 'Country (D D D DU)',
