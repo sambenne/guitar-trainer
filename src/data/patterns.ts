@@ -113,9 +113,9 @@ export const PRESET_PATTERNS: StrummingPattern[] = [
   },
   {
     /**
-     * Creep, charted as "↓ ↓ ↑↑↓↓ ↓↑" — eight strokes whose spacing sets the
-     * rhythm: quarters on 1 and 2, four sixteenths on 3, then eighths on 4.
-     * Needs the sixteenth grid to express the beat-3 burst.
+     * Creep: D---D---UUDD-DU- on a sixteenth grid. Quarters on 1 and 2, a
+     * sixteenth burst on 3, then beat 4 is syncopated — nothing on the beat
+     * itself, down on the "e", up on the "&".
      */
     id: 'p-creep',
     name: 'Creep (D D UUDD DU)',
@@ -136,9 +136,9 @@ export const PRESET_PATTERNS: StrummingPattern[] = [
       { direction: 'U' },
       { direction: 'D' },
       { direction: 'D' },
-      // 4 e & a — down, up on the offbeat
-      { direction: 'D' },
+      // 4 e & a — syncopated: down lands on the "e", up on the "&"
       { direction: '-' },
+      { direction: 'D' },
       { direction: 'U' },
       { direction: '-' },
     ],
