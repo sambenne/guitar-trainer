@@ -53,7 +53,7 @@ npm test             # vitest: timeline compiler + import/export validation
   and never drives timing itself. Metronome clicks are synthesized oscillators — no
   audio samples to cache.
 - **Strum display** ([src/components/strum-display.ts](src/components/strum-display.ts)) —
-  the pick indicator moves continuously, sweeping the strings each 8th-note step, ghosted
+  the pick indicator moves continuously, sweeping the strings each grid step, ghosted
   on `-` steps: the hand never stops, you just skip strokes. Low E renders at the top by
   default so downstrokes move down the screen (flippable in Settings).
 - **Storage** ([src/storage/](src/storage/)) — bundled presets (read-only) merged with
@@ -73,6 +73,6 @@ downsampled copies live in [public/samples/](public/samples/), full attribution 
 ## Data model
 
 Songs are sections → bars, one chord + one strumming pattern per bar (MVP constraint).
-Patterns are `D` / `U` / `-` steps on an 8th-note grid plus a per-pattern string mask.
+Patterns are `D` / `U` / `-` steps on an 8th- or 16th-note grid (`stepsPerBeat: 2 | 4`, defaulting to 2) plus a per-pattern string mask. Bars in one song may mix resolutions.
 Chords are six string states (`open` / `muted` / `fretted`) with optional finger numbers
 and a starting fret.

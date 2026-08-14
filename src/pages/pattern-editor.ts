@@ -3,18 +3,24 @@ import type { RouteContext } from '../app/router';
 import { navigate } from '../app/router';
 import { getSettings } from '../app/settings';
 import { createStrumLimiter, loadSampler, strumChord } from '../audio/sampler';
-import { createStrumDisplay } from '../components/strum-display';
+import { createStrumDisplay, stepLabel } from '../components/strum-display';
 import { PRESET_CHORDS } from '../data/chords';
 import * as repo from '../storage/repo';
-import { STRING_NAMES, type StrumDirection, type StrummingPattern } from '../types/models';
+import {
+  STRING_NAMES,
+  patternStepsPerBeat,
+  type StrumDirection,
+  type StrummingPattern,
+} from '../types/models';
 
 const PREVIEW_BPM = 80;
 /** Chord used to voice the preview strums. */
 const PREVIEW_CHORD = PRESET_CHORDS.find((c) => c.id === 'em')!;
 
 const CYCLE: Record<StrumDirection, StrumDirection> = { D: 'U', U: '-', '-': 'D' };
-const MAX_STEPS = 24;
-const MIN_STEPS = 4;
+/** Patterns are sized in whole beats; the step count follows the grid resolution. */
+const MIN_BEATS = 2;
+const MAX_BEATS = 12;
 
 export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () => void {
   let disposed = false;
@@ -29,10 +35,30 @@ export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () =>
   let draft: StrummingPattern = {
     id: crypto.randomUUID(),
     name: '',
+    stepsPerBeat: 2,
     steps: Array.from({ length: 8 }, (_, i) => ({ direction: i % 2 === 0 ? ('D' as const) : ('-' as const) })),
     strings: [true, true, true, true, true, true],
   };
   let isNew = true;
+
+  const spb = (): number => patternStepsPerBeat(draft);
+  const beats = (): number => draft.steps.length / spb();
+
+  /**
+   * Switch grid resolution, keeping the rhythm: 8ths → 16ths puts each existing
+   * stroke on the beat/offbeat it already occupied and fills the new gaps with
+   * ghost steps; 16ths → 8ths keeps the stroke that starts each eighth.
+   */
+  function setStepsPerBeat(next: 2 | 4): void {
+    const current = spb();
+    if (next === current) return;
+    if (next === 4) {
+      draft.steps = draft.steps.flatMap((step) => [step, { direction: '-' as const }]);
+    } else {
+      draft.steps = draft.steps.filter((_, i) => i % 2 === 0);
+    }
+    draft.stepsPerBeat = next;
+  }
 
   void (async () => {
     if (id) {
@@ -48,9 +74,9 @@ export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () =>
           draft = structuredClone(existing);
           isNew = false;
         }
-        // Legacy data can have an odd step count, which +/− (whole beats)
-        // can never fix — pad to a complete beat so the pattern is saveable.
-        if (draft.steps.length % 2 !== 0) draft.steps.push({ direction: '-' });
+        // Legacy data can hold a part-beat, which +/− (whole beats) can never
+        // fix — pad up to a complete beat so the pattern stays saveable.
+        while (draft.steps.length % patternStepsPerBeat(draft) !== 0) draft.steps.push({ direction: '-' });
       }
     }
     if (!disposed) build();
@@ -69,6 +95,14 @@ export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () =>
           <span>Pattern name</span>
           <input class="name-input" placeholder="e.g. Campfire" maxlength="40" />
         </label>
+
+        <div class="field">
+          <span>Feel</span>
+          <div class="mode-toggle subdivision-toggle" role="tablist">
+            <button data-spb="2" aria-pressed="false">♪ Eighths<span>1 &amp; 2 &amp;</span></button>
+            <button data-spb="4" aria-pressed="false">♬ Sixteenths<span>1 e &amp; a</span></button>
+          </div>
+        </div>
 
         <div class="field">
           <span>Pattern — tap a step to cycle D → U → −</span>
@@ -115,20 +149,42 @@ export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () =>
 
     function renderChips(): void {
       chipsEl.innerHTML = '';
+      const stepsPerBeat = spb();
+      // Group chips a beat at a time so a 16-chip bar still reads as 4 beats
+      let group: HTMLElement | null = null;
       draft.steps.forEach((step, i) => {
+        if (i % stepsPerBeat === 0) {
+          group = document.createElement('div');
+          group.className = 'chip-beat';
+          chipsEl.appendChild(group);
+        }
         const chip = document.createElement('button');
         const cls = step.direction === '-' ? 'none' : step.direction;
         chip.className = `step-chip dir-${cls}`;
-        const label = i % 2 === 0 ? String(i / 2 + 1) : '&';
-        chip.innerHTML = `${step.direction === '-' ? '−' : step.direction}<small>${label}</small>`;
+        chip.innerHTML = `${step.direction === '-' ? '−' : step.direction}<small>${stepLabel(i, stepsPerBeat)}</small>`;
         chip.addEventListener('click', () => {
           draft.steps[i] = { direction: CYCLE[step.direction] };
           renderChips();
           refreshPreview();
         });
-        chipsEl.appendChild(chip);
+        group!.appendChild(chip);
       });
     }
+
+    function renderSubdivision(): void {
+      root.querySelectorAll<HTMLButtonElement>('.subdivision-toggle button').forEach((btn) => {
+        btn.setAttribute('aria-pressed', String(Number(btn.dataset.spb) === spb()));
+      });
+    }
+
+    root.querySelectorAll<HTMLButtonElement>('.subdivision-toggle button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        setStepsPerBeat(Number(btn.dataset.spb) as 2 | 4);
+        renderSubdivision();
+        renderChips();
+        refreshPreview();
+      });
+    });
 
     function renderToggles(): void {
       togglesEl.innerHTML = '';
@@ -153,16 +209,19 @@ export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () =>
       }
     }
 
+    // +/− work in whole beats, so they add or drop a full beat's worth of steps
     (root.querySelector('.add-step') as HTMLElement).addEventListener('click', () => {
-      if (draft.steps.length >= MAX_STEPS) return;
-      draft.steps.push({ direction: 'D' }, { direction: '-' });
+      if (beats() >= MAX_BEATS) return;
+      const stepsPerBeat = spb();
+      draft.steps.push({ direction: 'D' });
+      for (let i = 1; i < stepsPerBeat; i++) draft.steps.push({ direction: '-' });
       renderChips();
       refreshPreview();
     });
 
     (root.querySelector('.remove-step') as HTMLElement).addEventListener('click', () => {
-      if (draft.steps.length <= MIN_STEPS) return;
-      draft.steps.splice(-2, 2);
+      if (beats() <= MIN_BEATS) return;
+      draft.steps.splice(-spb(), spb());
       renderChips();
       refreshPreview();
     });
@@ -183,7 +242,7 @@ export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () =>
         if (audioCtx.state === 'suspended') await audioCtx.resume();
         const buffers = await loadSampler(audioCtx);
 
-        const stepDur = 60 / PREVIEW_BPM / 2; // 8th-note grid
+        const stepDur = 60 / PREVIEW_BPM / spb();
         const t0 = audioCtx.currentTime + 0.1;
         draft.steps.forEach((step, i) => {
           if (step.direction === '-') return;
@@ -231,8 +290,8 @@ export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () =>
         return;
       }
       draft.name = draft.name.trim();
-      if (draft.steps.length < MIN_STEPS || draft.steps.length > MAX_STEPS || draft.steps.length % 2 !== 0) {
-        errorEl.textContent = 'Patterns must contain 2–12 complete beats (two eighth-note steps per beat).';
+      if (draft.steps.length % spb() !== 0 || beats() < MIN_BEATS || beats() > MAX_BEATS) {
+        errorEl.textContent = `Patterns must contain ${MIN_BEATS}–${MAX_BEATS} complete beats.`;
         return;
       }
 
@@ -240,6 +299,7 @@ export function renderPatternEditor(root: HTMLElement, ctx: RouteContext): () =>
       navigate('/editor');
     });
 
+    renderSubdivision();
     renderChips();
     renderToggles();
     refreshPreview();

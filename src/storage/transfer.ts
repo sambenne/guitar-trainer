@@ -92,11 +92,15 @@ function checkChord(c: unknown, i: number): asserts c is Chord {
 function checkPattern(p: unknown, i: number): asserts p is StrummingPattern {
   if (!isObj(p)) fail(`patterns[${i}] is not an object`);
   if (typeof p.id !== 'string' || !p.id) fail(`patterns[${i}].id missing`);
+  if (p.stepsPerBeat !== undefined && p.stepsPerBeat !== 2 && p.stepsPerBeat !== 4) {
+    fail(`patterns[${i}].stepsPerBeat must be 2 or 4`);
+  }
+  const stepsPerBeat = (p.stepsPerBeat as number | undefined) ?? 2;
   const steps = p.steps;
   if (!Array.isArray(steps) || steps.length === 0) fail(`patterns[${i}].steps must be non-empty`);
-  if (steps.length < 4 || steps.length > 24 || steps.length % 2 !== 0) {
-    fail(`patterns[${i}].steps must contain 2–12 complete beats`);
-  }
+  if (steps.length % stepsPerBeat !== 0) fail(`patterns[${i}].steps must contain complete beats`);
+  const beats = steps.length / stepsPerBeat;
+  if (beats < 2 || beats > 12) fail(`patterns[${i}].steps must contain 2–12 complete beats`);
   if (typeof p.name !== 'string' || !p.name) fail(`patterns[${i}].name missing`);
   steps.forEach((s: unknown, j: number) => {
     if (!isObj(s) || !['D', 'U', '-'].includes(s.direction as string)) fail(`patterns[${i}].steps[${j}] invalid`);

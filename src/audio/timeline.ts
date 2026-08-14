@@ -1,4 +1,5 @@
 import type { Song, StrummingPattern, StrumDirection } from '../types/models';
+import { patternStepsPerBeat } from '../types/models';
 
 /** One strum step, flattened out of sections/repeats/bars, positioned in beats. */
 export interface TimelineStep {
@@ -12,6 +13,8 @@ export interface TimelineStep {
   repeatIdx: number;
   /** Bar index within the section's bar list. */
   barIdx: number;
+  /** 0-based bar number across the whole song, counting repeats. */
+  barIndex: number;
   /** Step index within the pattern. */
   stepIdx: number;
   chordId: string;
@@ -32,6 +35,12 @@ export interface Timeline {
   totalBeats: number;
   beatsPerBar: number;
   sections: TimelineSection[];
+  /**
+   * Step index where each bar begins. Bars can hold different numbers of steps
+   * (an eighth-note pattern in one bar, sixteenths in the next), so callers must
+   * use this rather than dividing by a fixed steps-per-bar.
+   */
+  barStarts: number[];
 }
 
 export interface PlaybackLoopRange {
@@ -53,7 +62,9 @@ export function compileTimeline(song: Song, patterns: Map<string, StrummingPatte
   const beatsPerBar = song.timeSignature.beats;
   const steps: TimelineStep[] = [];
   const sections: TimelineSection[] = [];
+  const barStarts: number[] = [];
   let atBeat = 0;
+  let barIndex = 0;
 
   song.sections.forEach((section, sectionIdx) => {
     const stepStart = steps.length;
@@ -64,12 +75,14 @@ export function compileTimeline(song: Song, patterns: Map<string, StrummingPatte
         if (!pattern || pattern.steps.length === 0) {
           throw new Error(`Unknown or empty pattern "${bar.patternId}" in song "${song.id}"`);
         }
+        const stepsPerBeat = patternStepsPerBeat(pattern);
         const durationBeats = beatsPerBar / pattern.steps.length;
-        const requiredSteps = beatsPerBar * 2;
+        const requiredSteps = beatsPerBar * stepsPerBeat;
         if (pattern.steps.length !== requiredSteps) {
           throw new Error(
             `Pattern "${bar.patternId}" has ${pattern.steps.length} steps; ` +
-              `${song.timeSignature.beats}/${song.timeSignature.noteValue} requires ${requiredSteps}`,
+              `${song.timeSignature.beats}/${song.timeSignature.noteValue} at ${stepsPerBeat} per beat ` +
+              `requires ${requiredSteps}`,
           );
         }
         // Optional mid-bar chord change: split.chordId takes over from
@@ -78,8 +91,9 @@ export function compileTimeline(song: Song, patterns: Map<string, StrummingPatte
         if (split && (!Number.isInteger(split.atBeat) || split.atBeat < 2 || split.atBeat > beatsPerBar)) {
           throw new Error(`Bar ${barIdx + 1} in song "${song.id}" has an invalid split beat ${split.atBeat}`);
         }
-        const splitFromStep = split ? (split.atBeat - 1) * 2 : Infinity;
+        const splitFromStep = split ? (split.atBeat - 1) * stepsPerBeat : Infinity;
 
+        barStarts.push(steps.length);
         pattern.steps.forEach((strum, stepIdx) => {
           steps.push({
             atBeat,
@@ -89,6 +103,7 @@ export function compileTimeline(song: Song, patterns: Map<string, StrummingPatte
             sectionName: section.name,
             repeatIdx,
             barIdx,
+            barIndex,
             stepIdx,
             chordId: stepIdx >= splitFromStep ? split!.chordId : bar.chordId,
             patternId: bar.patternId,
@@ -96,12 +111,13 @@ export function compileTimeline(song: Song, patterns: Map<string, StrummingPatte
           });
           atBeat += durationBeats;
         });
+        barIndex++;
       });
     }
     sections.push({ name: section.name, stepStart, stepEnd: steps.length });
   });
 
-  return { steps, totalBeats: atBeat, beatsPerBar, sections };
+  return { steps, totalBeats: atBeat, beatsPerBar, sections, barStarts };
 }
 
 /** Index of the next step (at or after `stepIdx`) whose chord differs; null if none. */

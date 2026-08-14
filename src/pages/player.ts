@@ -270,12 +270,10 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     const lowTop = settings.stringOrientation === 'lowTop';
 
     // ---- Lyrics (user songs): current bar's line + the next, synced per bar ----
-    const stepsPerBar0 = timeline.beatsPerBar * 2;
-    const barLyrics: (string | undefined)[] = [];
-    for (let i = 0; i < timeline.steps.length; i += stepsPerBar0) {
-      const step = timeline.steps[i];
-      barLyrics.push(song.sections[step.sectionIdx]?.bars[step.barIdx]?.lyric);
-    }
+    const barLyrics: (string | undefined)[] = timeline.barStarts.map((start) => {
+      const step = timeline.steps[start];
+      return song.sections[step.sectionIdx]?.bars[step.barIdx]?.lyric;
+    });
     const hasLyrics = barLyrics.some(Boolean);
     const lyricStrip = $('.lyric-strip');
     const lyricNow = $('.lyric-now');
@@ -292,17 +290,23 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
 
     // Playback view of a bar with a mid-bar chord change: both chords stay
     // side by side; emphasis cross-fades over the beat before the switch.
-    const stepsPerBar = stepsPerBar0;
     const FADED = 0.3;
     let shownViewKey: string | null = null;
 
-    function barSplitInfo(idx: number): { barStart: number; splitLocal: number; chordA: string; chordB: string } | null {
+    function barSplitInfo(
+      idx: number,
+    ): { barStart: number; splitBeat: number; stepsPerBeat: number; chordA: string; chordB: string } | null {
       const step = timeline.steps[idx];
       const barStart = idx - step.stepIdx;
       const first = timeline.steps[barStart].chordId;
-      for (let i = barStart + 1; i < barStart + stepsPerBar && i < timeline.steps.length; i++) {
+      // Walk to the end of this bar — bars vary in length by pattern resolution.
+      for (let i = barStart + 1; i < timeline.steps.length; i++) {
         const s = timeline.steps[i];
-        if (s.chordId !== first) return { barStart, splitLocal: s.stepIdx, chordA: first, chordB: s.chordId };
+        if (s.barIndex !== step.barIndex) break;
+        if (s.chordId !== first) {
+          const stepsPerBeat = 1 / s.durationBeats;
+          return { barStart, splitBeat: s.beatInBar, stepsPerBeat, chordA: first, chordB: s.chordId };
+        }
       }
       return null;
     }
@@ -311,11 +315,11 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
       const idx = Math.min(Math.floor(stepFloat), timeline.steps.length - 1);
       const step = timeline.steps[idx];
 
-      showLyricForBar(Math.floor(idx / stepsPerBar));
+      showLyricForBar(step.barIndex);
 
       const split = barSplitInfo(idx);
       if (split) {
-        const key = `split:${split.chordA}:${split.chordB}:${split.splitLocal}`;
+        const key = `split:${split.chordA}:${split.chordB}:${split.splitBeat}`;
         if (shownViewKey !== key) {
           singleView.style.display = 'none';
           splitView.hidden = false;
@@ -327,7 +331,8 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
           shownViewKey = key;
           shownChordId = null;
         }
-        const beatsUntil = (split.splitLocal - (stepFloat - split.barStart)) / 2;
+        // Beats until the change, from wherever we are inside the bar
+        const beatsUntil = split.splitBeat - (stepFloat - split.barStart) / split.stepsPerBeat;
         const blend = beatsUntil >= 1 ? 1 : beatsUntil <= 0 ? 0 : beatsUntil; // 1 → chord A, 0 → chord B
         splitHalves[0].style.opacity = String(FADED + (1 - FADED) * blend);
         splitHalves[1].style.opacity = String(1 - (1 - FADED) * blend);
@@ -708,7 +713,7 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     });
 
     // ---- Bar-range loop (Loop: Custom bars) ----
-    const totalBars = timeline.steps.length / stepsPerBar;
+    const totalBars = timeline.barStarts.length;
     const barRangeEl = $('.bar-range');
     const rangeFromEl = $('.range-from');
     const rangeToEl = $('.range-to');
@@ -719,7 +724,10 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
     function applyBarRange(): void {
       rangeFromEl.textContent = String(rangeFrom);
       rangeToEl.textContent = String(rangeTo);
-      player?.setLoop({ start: (rangeFrom - 1) * stepsPerBar, end: rangeTo * stepsPerBar });
+      player?.setLoop({
+        start: timeline.barStarts[rangeFrom - 1],
+        end: timeline.barStarts[rangeTo] ?? timeline.steps.length,
+      });
       loopPasses = 0;
     }
     $('.range-from-down').addEventListener('click', () => {
@@ -748,7 +756,8 @@ export function renderPlayer(root: HTMLElement, ctx: RouteContext): () => void {
       else if (v === 'bars') {
         // Start the range on whatever bar is on screen right now
         const pos = player.getPosition();
-        const currentBar = pos.stepFloat !== null ? Math.floor(pos.stepFloat / stepsPerBar) + 1 : 1;
+        const atStep = pos.stepFloat !== null ? timeline.steps[Math.floor(pos.stepFloat)] : null;
+        const currentBar = atStep ? atStep.barIndex + 1 : 1;
         rangeFrom = Math.min(currentBar, totalBars);
         rangeTo = Math.min(rangeFrom + 1, totalBars);
         applyBarRange();

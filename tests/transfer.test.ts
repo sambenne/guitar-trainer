@@ -81,6 +81,22 @@ describe('parseBackup', () => {
   });
 
 
+  it('accepts a sixteenth-grid pattern and rejects a bad subdivision', () => {
+    const sixteenths: StrummingPattern = {
+      ...pattern,
+      stepsPerBeat: 4,
+      steps: Array.from({ length: 8 }, () => ({ direction: 'D' as const })), // 2 beats
+    };
+    expect(() => parseBackup(JSON.stringify(backup({ patterns: [sixteenths] })))).not.toThrow();
+
+    const oddSubdivision = { ...sixteenths, stepsPerBeat: 3 as unknown as 4 };
+    expect(() => parseBackup(JSON.stringify(backup({ patterns: [oddSubdivision] })))).toThrow(/stepsPerBeat/);
+
+    // 6 steps on a sixteenth grid is one and a half beats
+    const partialBeat = { ...sixteenths, steps: sixteenths.steps.slice(0, 6) };
+    expect(() => parseBackup(JSON.stringify(backup({ patterns: [partialBeat] })))).toThrow(/complete beats/);
+  });
+
   it('rejects a pattern with an incomplete beat', () => {
     const bad = backup({ patterns: [{ ...pattern, steps: pattern.steps.slice(0, 3) }] });
     expect(() => parseBackup(JSON.stringify(bad))).toThrow(/complete beats/);

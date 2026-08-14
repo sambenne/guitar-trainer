@@ -1,9 +1,22 @@
 import type { StrummingPattern, StrumDirection } from '../types/models';
-import { STRING_NAMES, STRING_COUNT } from '../types/models';
+import { STRING_NAMES, STRING_COUNT, patternStepsPerBeat } from '../types/models';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+/** Column width for an eighth-note grid; sixteenths halve it so the panel keeps its shape. */
 const COL_W = 80;
+/** Counting syllables within one beat, by position: eighths "1 &", sixteenths "1 e & a". */
+const SUBDIVISION_LABELS: Record<number, string[]> = {
+  2: ['', '&'],
+  4: ['', 'e', '&', 'a'],
+};
+
+/** How a step is counted aloud — shared so the display and editor never disagree. */
+export function stepLabel(stepIndex: number, stepsPerBeat: number): string {
+  const within = stepIndex % stepsPerBeat;
+  if (within === 0) return String(stepIndex / stepsPerBeat + 1);
+  return (SUBDIVISION_LABELS[stepsPerBeat] ?? SUBDIVISION_LABELS[2])[within] ?? '';
+}
 const H = 280;
 const LABEL_Y = 22;
 const ARROW_Y = 62;
@@ -48,6 +61,7 @@ export function createStrumDisplay(): StrumDisplay {
 
   let pattern: StrummingPattern | null = null;
   let lowTop = true;
+  let colW = COL_W;
   let colors = { line: '#444', dim: '#999', text: '#fff', accent: '#f5b301' };
 
   // Dynamic nodes, rebuilt by setPattern
@@ -60,7 +74,7 @@ export function createStrumDisplay(): StrumDisplay {
   let lastStep = -1;
 
   function stepX(i: number): number {
-    return i * COL_W + COL_W / 2;
+    return i * colW + colW / 2;
   }
 
   function setPattern(p: StrummingPattern, lowStringOnTop: boolean): void {
@@ -76,8 +90,12 @@ export function createStrumDisplay(): StrumDisplay {
       accent: styles.getPropertyValue('--accent').trim() || '#f5b301',
     };
 
+    const stepsPerBeat = patternStepsPerBeat(p);
     const steps = p.steps.length;
-    const width = steps * COL_W;
+    // Sixteenths pack into half-width columns, so a bar occupies the same
+    // space as an eighth-note bar instead of doubling the panel's aspect ratio.
+    colW = stepsPerBeat === 4 ? COL_W / 2 : COL_W;
+    const width = steps * colW;
     svg.setAttribute('viewBox', `0 0 ${width} ${H}`);
     svg.innerHTML = '';
     arrowNodes = [];
@@ -88,7 +106,7 @@ export function createStrumDisplay(): StrumDisplay {
     highlightRect = el('rect', {
       x: 0,
       y: 0,
-      width: COL_W,
+      width: colW,
       height: H,
       rx: 10,
       fill: colors.accent,
@@ -97,13 +115,13 @@ export function createStrumDisplay(): StrumDisplay {
     svg.appendChild(highlightRect);
 
     // Beat labels + direction arrows
-    const subdivisions = 2; // 8th-note grid
     for (let i = 0; i < steps; i++) {
-      const label = i % subdivisions === 0 ? String(i / subdivisions + 1) : '&';
+      const within = i % stepsPerBeat;
+      const label = stepLabel(i, stepsPerBeat);
       const labelNode = el('text', {
         x: stepX(i),
         y: LABEL_Y,
-        'font-size': 20,
+        'font-size': within === 0 ? 20 : 17,
         fill: colors.dim,
         'text-anchor': 'middle',
         'dominant-baseline': 'central',
@@ -187,7 +205,7 @@ export function createStrumDisplay(): StrumDisplay {
     const down = motionIsDown(step.direction, i);
 
     // Column highlight + arrow emphasis
-    highlightRect.setAttribute('x', String(i * COL_W));
+    highlightRect.setAttribute('x', String(i * colW));
     highlightRect.setAttribute('opacity', '0.14');
     if (i !== lastStep) {
       arrowNodes.forEach((a, idx) => {

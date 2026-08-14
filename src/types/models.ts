@@ -30,10 +30,25 @@ export interface StrumStep {
 export interface StrummingPattern {
   id: string;
   name: string;
-  /** 8th-note grid: length = beats × 2 for MVP. */
+  /**
+   * Grid resolution: 2 = eighth notes ("1 & 2 &"), 4 = sixteenths ("1 e & a").
+   * Absent means 2, so patterns written before this existed still load.
+   */
+  stepsPerBeat?: 2 | 4;
+  /** Grid steps: length = beats × stepsPerBeat. */
   steps: StrumStep[];
   /** Which strings are strummed; 6 entries, low E → high e. */
   strings: boolean[];
+}
+
+/** Steps per beat for a pattern, defaulting to eighth notes. */
+export function patternStepsPerBeat(pattern: Pick<StrummingPattern, 'stepsPerBeat'>): number {
+  return pattern.stepsPerBeat ?? 2;
+}
+
+/** Beats a pattern fills — its bar length, independent of grid resolution. */
+export function patternBeats(pattern: StrummingPattern): number {
+  return pattern.steps.length / patternStepsPerBeat(pattern);
 }
 
 export interface SongBar {

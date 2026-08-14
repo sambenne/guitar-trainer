@@ -2,6 +2,7 @@ import './editor.css';
 import type { RouteContext } from '../app/router';
 import { navigate } from '../app/router';
 import * as repo from '../storage/repo';
+import { patternBeats } from '../types/models';
 import type { Chord, Song, SongSection, StrummingPattern } from '../types/models';
 
 export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => void {
@@ -52,7 +53,7 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
   })();
 
   function defaultBar(): { chordId: string; patternId: string } {
-    const compatiblePattern = patterns.find((pattern) => pattern.steps.length === draft.timeSignature.beats * 2);
+    const compatiblePattern = patterns.find((pattern) => patternBeats(pattern) === draft.timeSignature.beats);
     return { chordId: chords[0]?.id ?? '', patternId: compatiblePattern?.id ?? '' };
   }
 
@@ -171,14 +172,14 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
       }
     }
     function populatePatternOptions(select: HTMLSelectElement, selected: string): void {
-      const requiredSteps = draft.timeSignature.beats * 2;
-      const compatible = patterns.filter((pattern) => pattern.steps.length === requiredSteps);
+      const barBeats = draft.timeSignature.beats;
+      const compatible = patterns.filter((pattern) => patternBeats(pattern) === barBeats);
       const selectedPattern = patterns.find((pattern) => pattern.id === selected);
 
-      if (selectedPattern && selectedPattern.steps.length !== requiredSteps) {
+      if (selectedPattern && patternBeats(selectedPattern) !== barBeats) {
         const warning = document.createElement('option');
         warning.value = selectedPattern.id;
-        warning.textContent = `Warning: ${selectedPattern.name} (${selectedPattern.steps.length / 2} beats)`;
+        warning.textContent = `Warning: ${selectedPattern.name} (${patternBeats(selectedPattern)} beats)`;
         warning.selected = true;
         warning.disabled = true;
         select.appendChild(warning);
@@ -389,14 +390,16 @@ export function renderSongEditor(root: HTMLElement, ctx: RouteContext): () => vo
           else delete b.lyric;
         });
       });
-      const requiredSteps = draft.timeSignature.beats * 2;
       const patternMap = new Map(patterns.map((pattern) => [pattern.id, pattern]));
       const hasIncompatiblePattern = draft.sections.some((section) =>
-        section.bars.some((bar) => patternMap.get(bar.patternId)?.steps.length !== requiredSteps),
+        section.bars.some((bar) => {
+          const pattern = patternMap.get(bar.patternId);
+          return !pattern || patternBeats(pattern) !== draft.timeSignature.beats;
+        }),
       );
       if (hasIncompatiblePattern) {
         errorEl.textContent =
-          `Every bar needs a ${draft.timeSignature.beats}-beat pattern with ${requiredSteps} eighth-note steps.`;
+          `Every bar needs a pattern that fills ${draft.timeSignature.beats} beats.`;
         return;
       }
 

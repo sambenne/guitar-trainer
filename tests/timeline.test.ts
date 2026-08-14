@@ -34,9 +34,19 @@ const quarterPattern: StrummingPattern = {
   strings: [true, true, true, true, true, true],
 };
 
+/** 4/4 on a sixteenth grid: 16 steps. */
+const sixteenthPattern: StrummingPattern = {
+  id: 'p16',
+  name: 'Sixteenths',
+  stepsPerBeat: 4,
+  steps: Array.from({ length: 16 }, (_, i) => ({ direction: i % 4 === 0 ? ('D' as const) : ('-' as const) })),
+  strings: [true, true, true, true, true, true],
+};
+
 const patterns = new Map([
   [eighthPattern.id, eighthPattern],
   [quarterPattern.id, quarterPattern],
+  [sixteenthPattern.id, sixteenthPattern],
 ]);
 
 function makeSong(overrides: Partial<Song> = {}): Song {
@@ -145,6 +155,64 @@ describe('compileTimeline', () => {
     // Bar boundaries and totals are unchanged
     expect(tl.steps[8].chordId).toBe('d69');
     expect(tl.totalBeats).toBe(20);
+  });
+
+  describe('sixteenth-note patterns', () => {
+    function sixteenthSong(): Song {
+      const song = makeSong();
+      song.sections = [
+        { id: 'v', name: 'Verse', repeat: 1, bars: [{ chordId: 'em', patternId: 'p16' }, { chordId: 'd69', patternId: 'p16' }] },
+      ];
+      return song;
+    }
+
+    it('lays 16 steps of a quarter the length across the bar', () => {
+      const tl = compileTimeline(sixteenthSong(), patterns);
+      expect(tl.steps).toHaveLength(32);
+      expect(tl.steps[0].durationBeats).toBe(0.25);
+      expect(tl.steps[4].atBeat).toBe(1); // fifth sixteenth = beat 2
+      expect(tl.steps[16].atBeat).toBe(4); // second bar
+      expect(tl.totalBeats).toBe(8);
+    });
+
+    it('puts a mid-bar split on the right sixteenth', () => {
+      const song = sixteenthSong();
+      // Split on beat 3 → step 8 of 16, not step 4
+      song.sections[0].bars[0].split = { atBeat: 3, chordId: 'd69' };
+      const tl = compileTimeline(song, patterns);
+      expect(tl.steps.slice(0, 8).every((s) => s.chordId === 'em')).toBe(true);
+      expect(tl.steps.slice(8, 16).every((s) => s.chordId === 'd69')).toBe(true);
+      expect(tl.steps[8].beatInBar).toBe(2); // 0-based → beat 3
+    });
+
+    it('rejects a sixteenth pattern that does not fill the bar', () => {
+      const short: StrummingPattern = { ...sixteenthPattern, id: 'short16', steps: sixteenthPattern.steps.slice(0, 8) };
+      const song = sixteenthSong();
+      song.sections[0].bars[0].patternId = short.id;
+      expect(() => compileTimeline(song, new Map([...patterns, [short.id, short]]))).toThrow(/requires 16/);
+    });
+
+    it('numbers bars and records their step offsets when densities are mixed', () => {
+      const song = makeSong();
+      song.sections = [
+        {
+          id: 'v',
+          name: 'Verse',
+          repeat: 1,
+          bars: [
+            { chordId: 'em', patternId: 'p8' }, // 8 steps
+            { chordId: 'd69', patternId: 'p16' }, // 16 steps
+            { chordId: 'em', patternId: 'p8' }, // 8 steps
+          ],
+        },
+      ];
+      const tl = compileTimeline(song, patterns);
+      expect(tl.barStarts).toEqual([0, 8, 24]);
+      expect(tl.steps[0].barIndex).toBe(0);
+      expect(tl.steps[8].barIndex).toBe(1);
+      expect(tl.steps[24].barIndex).toBe(2);
+      expect(tl.totalBeats).toBe(12); // three 4-beat bars regardless of grid
+    });
   });
 
   it('rejects a split outside the bar', () => {

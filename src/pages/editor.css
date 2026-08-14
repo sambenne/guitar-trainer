@@ -118,12 +118,6 @@ button.danger {
 
 /* ---- Pattern editor ---- */
 
-.step-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .step-chip {
   width: 52px;
   height: 56px;
@@ -283,6 +277,53 @@ button.danger {
 
 .section-head .lyrics-toggle[aria-pressed='true'] {
   color: var(--accent);
+}
+
+/* Grid-resolution toggle (eighths / sixteenths) */
+.subdivision-toggle {
+  display: flex;
+  gap: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.subdivision-toggle button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-weight: 600;
+  line-height: 1.25;
+  padding: 6px 4px;
+}
+
+.subdivision-toggle button span {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.75;
+}
+
+.subdivision-toggle button[aria-pressed='true'] {
+  background: var(--panel-2);
+  color: var(--accent);
+}
+
+/* Step chips are grouped a beat at a time so 16ths stay readable */
+.step-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chip-beat {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
 }
 
 .bar-lyric-row {

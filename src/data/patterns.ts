@@ -2,7 +2,10 @@ import type { StrummingPattern } from '../types/models';
 
 const ALL_STRINGS = [true, true, true, true, true, true];
 
-/** Preset strumming patterns, read-only. Steps are on an 8th-note grid (2 per beat). */
+/**
+ * Preset strumming patterns, read-only. Steps sit on an 8th-note grid (2 per
+ * beat) unless the pattern declares `stepsPerBeat: 4` for sixteenths.
+ */
 export const PRESET_PATTERNS: StrummingPattern[] = [
   {
     id: 'p-four-downs',
@@ -109,18 +112,35 @@ export const PRESET_PATTERNS: StrummingPattern[] = [
     strings: [...ALL_STRINGS],
   },
   {
-    // Creep: D D U U D D D U — every eighth note struck, no rests.
+    /**
+     * Creep, charted as "↓ ↓ ↑↑↓↓ ↓↑" — eight strokes whose spacing sets the
+     * rhythm: quarters on 1 and 2, four sixteenths on 3, then eighths on 4.
+     * Needs the sixteenth grid to express the beat-3 burst.
+     */
     id: 'p-creep',
-    name: 'Creep (D D UU DD DU)',
+    name: 'Creep (D D UUDD DU)',
+    stepsPerBeat: 4,
     steps: [
+      // 1 e & a — quarter-note down
       { direction: 'D' },
+      { direction: '-' },
+      { direction: '-' },
+      { direction: '-' },
+      // 2 e & a — quarter-note down
       { direction: 'D' },
+      { direction: '-' },
+      { direction: '-' },
+      { direction: '-' },
+      // 3 e & a — the sixteenth burst
       { direction: 'U' },
       { direction: 'U' },
       { direction: 'D' },
       { direction: 'D' },
+      // 4 e & a — down, up on the offbeat
       { direction: 'D' },
+      { direction: '-' },
       { direction: 'U' },
+      { direction: '-' },
     ],
     strings: [...ALL_STRINGS],
   },
